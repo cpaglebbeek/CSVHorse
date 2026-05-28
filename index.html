@@ -1376,6 +1376,17 @@ const IO = {
           const meta = results.meta || {};
           /* Lift __style_*-kolommen naar styles-object (B-roundtrip) */
           const lifted = IO.liftStyles(rows, headers);
+          const styleCellCount = Object.values(lifted.styles).reduce(
+            (sum, row) => sum + Object.keys(row).length, 0);
+          console.log('[CSVHorse import]', {
+            file: file.name,
+            rawHeaders: headers,
+            styleHeadersDetected: headers.filter(h => IO.STYLE_COL_PATTERN.test(h)),
+            realCols: lifted.cols,
+            rows: lifted.rows.length,
+            styleCellCount,
+            stylesObject: lifted.styles
+          });
           resolve({
             rows: lifted.rows,
             cols: lifted.cols,
@@ -1387,7 +1398,8 @@ const IO = {
             },
             fileName: file.name,
             errors: results.errors || [],
-            stylesLifted: Object.keys(lifted.styles).length
+            stylesLifted: Object.keys(lifted.styles).length,
+            styleCellCount: styleCellCount
           });
         },
         error: (err) => reject(err)
@@ -2328,10 +2340,15 @@ const UI = {
       const result = await IO.parseFile(file);
       DataStore.load(result);
       const c = DataStore.count();
+      const styleCells = result.styleCellCount || 0;
       let msg = `Geladen: ${file.name} — ${c.rows} rij${c.rows === 1 ? '' : 'en'} × ${c.cols} kolom${c.cols === 1 ? '' : 'men'}`;
+      if (styleCells > 0) {
+        msg += ` · opmaak hersteld: ${styleCells} cel${styleCells === 1 ? '' : 'len'}`;
+      }
       if (result.errors && result.errors.length > 0) {
         msg += ` (${result.errors.length} waarschuwing${result.errors.length === 1 ? '' : 'en'})`;
       }
+      console.log('[CSVHorse load]', { storeRows: DataStore.rows.length, storeCols: DataStore.cols.length, storeStyles: DataStore.styles, styleCells });
       this.showToast(msg, 'ok');
     } catch (err) {
       console.error('[CSVHorse]', err);
