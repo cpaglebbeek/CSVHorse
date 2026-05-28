@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.5.0-Knabstrupper (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.5.0.1-Knabstrupper (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -899,7 +899,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.5.0-Knabstrupper</span>
+  <span class="badge">v0.5.0.1-Knabstrupper</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -1198,7 +1198,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.5.0-Knabstrupper (codenaam Knabstrupper) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.5.0.1-Knabstrupper (codenaam Knabstrupper) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -3139,10 +3139,20 @@ const IO = {
         const p = Papa.parse(txt, { skipEmptyLines: true });
         if (!p.data || p.data.length < 2) continue;
         const hdr = p.data[0].map(h => String(h).toLowerCase());
-        const idx = (k) => hdr.findIndex(h => h === k);
-        const iFs = idx('from_sheet'), iFc = idx('from_col'),
-              iTs = idx('to_sheet'),   iTc = idx('to_col'),
-              iCa = idx('cardinality'), iNm = idx('name');
+        /* v0.5.0.1 B-004: accepteer header-aliases — from_sheet ⇄ from_table, to_sheet ⇄ to_table */
+        const findFirst = (keys) => {
+          for (const k of keys) {
+            const i = hdr.findIndex(h => h === k);
+            if (i >= 0) return i;
+          }
+          return -1;
+        };
+        const iFs = findFirst(['from_sheet', 'from_table']),
+              iFc = findFirst(['from_col', 'from_column']),
+              iTs = findFirst(['to_sheet', 'to_table']),
+              iTc = findFirst(['to_col', 'to_column']),
+              iCa = findFirst(['cardinality', 'kardinaliteit']),
+              iNm = findFirst(['name', 'naam']);
         if (iFs < 0 || iTs < 0) continue;
         for (const row of p.data.slice(1)) {
           if (!row || !row[iFs]) continue;
@@ -4153,6 +4163,24 @@ const UI = {
     /* state voor add-row */
     const state = rel ? { ...rel } : { from_sheet: '', from_col: '', to_sheet: '', to_col: '', cardinality: '1-N', name: '' };
 
+    /* v0.5.0.1 B-005: tds van col-selects bewaren voor live re-render bij add-row sheet-change */
+    const colCells = { from_col: null, to_col: null };
+
+    const mkColSelect = (which) => {
+      const sel = document.createElement('select');
+      const refSheet = which === 'from_col' ? state.from_sheet : state.to_sheet;
+      const sheet = sheets.find(s => s.name === refSheet);
+      const cols = sheet ? sheet.cols : [];
+      sel.innerHTML = '<option value="">--kolom--</option>' +
+        cols.map(c => `<option value="${this._escAttr(c)}"${state[which] === c ? ' selected' : ''}>${this._escHtml(c)}</option>`).join('');
+      if (cols.length === 0) sel.disabled = true;
+      sel.addEventListener('change', (e) => {
+        state[which] = e.target.value;
+        if (!isAddRow && rel) DataStore.updateRelation(rel.id, { [which]: e.target.value });
+      });
+      return sel;
+    };
+
     const mkSheetSelect = (which) => {
       const sel = document.createElement('select');
       sel.innerHTML = '<option value="">--werkblad--</option>' +
@@ -4161,20 +4189,13 @@ const UI = {
         state[which] = e.target.value;
         const colWhich = which === 'from_sheet' ? 'from_col' : 'to_col';
         state[colWhich] = '';
-        if (!isAddRow && rel) DataStore.updateRelation(rel.id, { [which]: state[which], [colWhich]: '' });
-      });
-      return sel;
-    };
-    const mkColSelect = (which) => {
-      const sel = document.createElement('select');
-      const refSheet = which === 'from_col' ? state.from_sheet : state.to_sheet;
-      const sheet = sheets.find(s => s.name === refSheet);
-      const cols = sheet ? sheet.cols : [];
-      sel.innerHTML = '<option value="">--kolom--</option>' +
-        cols.map(c => `<option value="${this._escAttr(c)}"${state[which] === c ? ' selected' : ''}>${this._escHtml(c)}</option>`).join('');
-      sel.addEventListener('change', (e) => {
-        state[which] = e.target.value;
-        if (!isAddRow && rel) DataStore.updateRelation(rel.id, { [which]: e.target.value });
+        if (!isAddRow && rel) {
+          DataStore.updateRelation(rel.id, { [which]: state[which], [colWhich]: '' });
+        } else if (isAddRow && colCells[colWhich]) {
+          /* B-005: live-rebuild de col-dropdown nu de sheet bekend is */
+          colCells[colWhich].innerHTML = '';
+          colCells[colWhich].appendChild(mkColSelect(colWhich));
+        }
       });
       return sel;
     };
@@ -4206,9 +4227,11 @@ const UI = {
 
     const tdFs = document.createElement('td'); tdFs.appendChild(mkSheetSelect('from_sheet')); tr.appendChild(tdFs);
     const tdFc = document.createElement('td'); tdFc.appendChild(mkColSelect('from_col')); tr.appendChild(tdFc);
+    colCells.from_col = tdFc;
     const tdAr = document.createElement('td'); tdAr.className = 'arrow'; tdAr.textContent = '→'; tr.appendChild(tdAr);
     const tdTs = document.createElement('td'); tdTs.appendChild(mkSheetSelect('to_sheet')); tr.appendChild(tdTs);
     const tdTc = document.createElement('td'); tdTc.appendChild(mkColSelect('to_col')); tr.appendChild(tdTc);
+    colCells.to_col = tdTc;
     const tdCa = document.createElement('td'); tdCa.appendChild(mkCardSelect()); tr.appendChild(tdCa);
     const tdNm = document.createElement('td'); tdNm.appendChild(mkNameInput()); tr.appendChild(tdNm);
     const tdAc = document.createElement('td');

@@ -8,6 +8,44 @@ _Geen._
 
 ## Opgeloste bugs
 
+### B-005 — Handmatig relatie aanmaken werkt niet: col-dropdown blijft leeg (geel)
+
+**Datum:** 2026-05-28
+**Versie:** v0.5.0-Knabstrupper (intro), gefixt in v0.5.0.1-Knabstrupper
+**Symptoom:** In de 🔗 Relaties-tab: user kiest een werkblad in de From-dropdown, maar de bijbehorende From-col-dropdown blijft op `--kolom--` zonder opties. Knop "+ Voeg toe" → toast "Vul alle 4 kolommen in".
+
+**RCA (3 niveaus):**
+- **Functioneel:** add-row in relaties-tab is feitelijk dood — niemand kan handmatig een relatie toevoegen.
+- **Technisch:** `_buildRelRow` met `isAddRow=true` bouwt de col-`<select>` met `cols = sheet ? sheet.cols : []`. Op render-tijd is `state.from_sheet` leeg → 0 opties. Sheet-change updatet alleen `state`, niet de DOM. Voor bestaande rels werkt het: `updateRelation` → `notify('relations-changed')` → volledige her-render van `renderRelationsPanel()`. Voor add-row is er géén `rel.id`, dus geen notify, dus stale dropdown.
+- **Architectonisch:** stale-closure UI-bug — geen feedback-loop tussen lokale transiente state en DOM voor de add-row. De observer-pattern dekt alleen committed DataStore-state.
+
+**Fix:** sheet-select-handler voor `isAddRow=true` rebouwt nu inline de bijbehorende col-`<td>` via een `colCells`-map. Col-select krijgt `disabled=true` als er nog geen sheet gekozen is (visuele feedback).
+
+**Preventie:** voor transiente UI-state altijd een lokale rebuild-pad bewaren; observer-notifies alleen voor committed state. Patroon-ID: `UI-STATE-001` — toegevoegd onder "Terugkerende patronen".
+
+### B-004 — RELATIONS-blok in multi-tabel CSV niet herkend (geel)
+
+**Datum:** 2026-05-28
+**Versie:** v0.5.0-Knabstrupper (intro), gefixt in v0.5.0.1-Knabstrupper
+**Symptoom:** Het meegeleverde `docs/examples/multi-table-example.csv` heeft 2 relaties, maar na import in SheetHorse staat het relaties-tabblad leeg. Geen warning of toast.
+
+**RCA (3 niveaus):**
+- **Functioneel:** de format-spec gepubliceerd op LinkedIn + voorbeeldbestand gebruiken `from_table`/`to_table` (lezerstaal); parser zoekt `from_sheet`/`to_sheet` (interne canonical). Hele blok wordt stil overgeslagen.
+- **Technisch:** `IO.liftMultiSheetCsv` regel ~3143: `iFs = idx('from_sheet')`. Geen alias-fallback. Regel ~3146: `if (iFs < 0 || iTs < 0) continue` zonder `console.warn` of toast.
+- **Architectonisch:** format-contract-mismatch tussen publicatie en implementatie. De CSV is een **mensgericht uitwisselingsformaat**; tolerant accepteren van synoniemen hoort daarbij.
+
+**Fix:** parser accepteert nu beide schema's via `findFirst([alias1, alias2])`-helper. Aliases:
+- `from_sheet` ⇄ `from_table`
+- `to_sheet` ⇄ `to_table`
+- `from_col` ⇄ `from_column`
+- `to_col` ⇄ `to_column`
+- `cardinality` ⇄ `kardinaliteit`
+- `name` ⇄ `naam`
+
+Writer (`flattenMultiSheetCsv`) blijft canonical `from_sheet`-schema schrijven → bestaande v0.5.0-exports zijn backwards-compatible.
+
+**Preventie:** bij elk publiek CSV/JSON-format vooraf vastleggen welke header-synoniemen worden geaccepteerd, en dat valideren via een testbestand met **beide** vormen. Patroon-ID: `FORMAT-CONTRACT-001` — toegevoegd onder "Terugkerende patronen".
+
 ### B-003 — Opmaak verdwijnt bij re-import na export (groen)
 
 **Datum:** 2026-05-28
@@ -93,6 +131,8 @@ Te vullen tijdens MVP-implementatie en daarna. Initiële verwachte categorieën 
 | STORE-001 | Autosave | localStorage quota-exceeded bij groot dataset | Quota-check vóór write, schuif uitschakelen + toast bij overflow |
 | DEPLOY-CDN-001 | Deploy | jsDelivr CDN cached `@main` tot 7 dagen → gebruiker ziet oude versie | Tijdens active development = **GitHub Pages** als primaire preview-URL; jsDelivr alleen voor stable releases met commit-hash of versie-tag |
 | DEPLOY-CACHE-002 | Deploy/Client | Browser cached `index.html` → user ziet oude JS-versie ondanks Pages-deploy van nieuwe | Bij elk feature-test: **hard-refresh** (Ctrl/Cmd+Shift+R) i.p.v. F5. Voor publieke deploy: cache-control headers (nog niet nodig in dev-fase) |
+| FORMAT-CONTRACT-001 | Parse | Header-naming-mismatch tussen publicatie (`from_table`) en parser (`from_sheet`) → blok stil overgeslagen | Mensgerichte CSV/JSON-formats: lijst van geaccepteerde header-synoniemen vooraf vastleggen + testbestand met beide vormen; nooit `continue` zonder `console.warn` bij onbekende headers |
+| UI-STATE-001 | UI | Add-row dropdowns afhankelijk van eerder gekozen dropdown her-renderen niet bij sheet-change → input feitelijk dood | Voor transiente UI-state een lokale rebuild-pad bewaren (td-references in een map); observer-notifies dekken alleen committed DataStore-state, niet pre-commit form-state |
 
 ## Globale referentie
 

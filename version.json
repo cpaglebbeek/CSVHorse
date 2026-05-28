@@ -2,9 +2,9 @@
   "product": "SheetHorse",
   "branch": "sheethorse",
   "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch) — incl. cherry-pick v0.2.0.3 header-edit",
-  "version": "0.5.0",
+  "version": "0.5.0.1",
   "codename": "Knabstrupper",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "CSV-met-metadata format: multi-tabel + relaties + lastQuery in één CSV-bestand via marker-syntax (# TABLE <naam> / # RELATIONS / # QUERY). Auto-detect bij import via marker-scan. Style-roundtrip per tabel (__style_*). Export-dialog format-dropdown: csv / csv-multi / xlsx. Volledige roundtrip-pariteit voor virtuele relationele DB zonder Excel."
+  "phase": "v0.5.0.1 bugfix-release (geel × 2): B-004 parser-schema-alias (from_table/to_table naast from_sheet/to_sheet in # RELATIONS-blok) + B-005 add-row stale-closure (col-dropdown her-renderd nu live bij sheet-keuze in Relaties-tab). v0.5.0 feature-scope ongewijzigd: CSV-met-metadata format met marker-syntax, style-roundtrip per tabel, auto-detect, 3 export-formats."
 }
