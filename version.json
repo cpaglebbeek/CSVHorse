@@ -1,7 +1,7 @@
 {
-  "version": "0.1.1.1",
-  "codename": "Akhal-Teke",
+  "version": "0.1.2",
+  "codename": "Appaloosa",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 4 + B-002 fix: SQL-panel met correcte alasql.tables.data binding"
+  "phase": "MVP-stap 5: basic CSV export (huidige view contextueel) — scope geshift van opmaak naar export"
 }

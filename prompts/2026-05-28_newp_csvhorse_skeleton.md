@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.1.2-Appaloosa: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore"
+resume: "verder met CSVHorse v0.1.3: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore — codenaam te kiezen uit paardenrassen-thema"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -399,3 +399,61 @@ const res = window.alasql(query);   // geen 2e arg
 - AlaSQL named-table = `alasql.tables.<naam>.data = arr` (niet via positional params)
 - Re-bind elke run zodat live edits zichtbaar zijn in SELECT
 - Vendor-docs eerste voorbeeld != natuurlijke eindgebruiker-syntax — test met de query die de gebruiker écht zal typen
+
+## v0.1.2-Appaloosa (zevende deelopdracht: basic CSV export)
+
+**Prompt-keten:**
+1. *"deze versie kan nog niet exporteren?"* (vraag of export NU mogelijk is)
+2. *"ja, basic export"* (akkoord scope-shift v0.4.0 → v0.1.2)
+3. *"ja, ga door"* (akkoord op 3 defaults)
+
+### Scope-shift
+| Vóór | Na |
+|---|---|
+| v0.1.2 Appaloosa = opmaak-toolbar | v0.1.2 Appaloosa = **basic CSV export** |
+| — | v0.1.3 = opmaak (codenaam bij die release) |
+| v0.4.0 Shire = export met `__style_*` roundtrip | v0.4.0 Shire = export-met-`__style_*`-roundtrip (vereist opmaak — ongewijzigd) |
+
+### Toegevoegd aan `index.html`
+- **ExportService module** — `exportCurrent()` + `_timestamp()` + `_download()`. Bepaalt mode op runtime: SQL → result-rows en result-cols; Filter → visible row-indexes via `Filter.visibleRowIndexes().map(r => DataStore.rows[r])` met origineel cols; anders → alle DataStore.rows + cols. Gebruikt `Papa.unparse([cols, ...rows], {delimiter, newline:'\r\n'})`. Maakt `<a download>` Blob-link en triggert klik.
+- **HTML** — `<button id="btnExport">⬇ Exporteer</button>` (was disabled placeholder, nu active met handler + title-update)
+- **UI wiring** — `wireExportButton()`, `els.btnExport.disabled` toggled in `onDataChanged` (empty → true, data → false)
+
+### Bestandsnaam-template
+`<basis>_<modus>_<YYYYMMDD_HHMM>.csv` waarbij:
+- `<basis>` = `DataStore.fileName` zonder extensie, gesanitized (alleen `a-zA-Z0-9._-`); fallback `csvhorse`
+- `<modus>` = `sql` / `filtered` / `all`
+- Voorbeeld: `sample_filtered_20260528_1450.csv`
+
+### Dialect-behoud
+`DataStore.dialect.delimiter` (komma/`;`/TAB/pipe) blijft consistent met import → wat erin gaat is wat eruit komt. Verifieerde via Node:
+- `delimiter:','` → `naam,leeftijd,stad\r\nAnna,34,Haarlem`
+- `delimiter:';'` → `naam;leeftijd;stad\r\nAnna;34;Haarlem`
+- `delimiter:'\t'` → `naam\tleeftijd\tstad\r\nAnna\t34\tHaarlem`
+
+### Wat NIET in v0.1.2
+- `__style_*`-roundtrip — vereist opmaak (v0.1.3) en wordt definitief uitgewerkt in v0.4.0-Shire
+- Dropdown met expliciete keuze "huidige / filtered / origineel" — voor MVP houden we het bij contextuele auto-detect; dropdown kan later
+- Excel-export — alleen CSV
+- Export-met-aangepaste-delimiter — voor v0.1.2 altijd dezelfde als import
+
+### File-statistieken na v0.1.2
+- `index.html`: ~1.785 regels / ~590 KB (was 1.781/587 KB in v0.1.1.1)
+- Eigen JS-blok: 40.296 chars (+2.8KB voor ExportService + wiring)
+- PapaParse + AlaSQL onveranderd
+
+### Verificatie
+- JS-syntax: alle 3 blokken groen via `new Function()`
+- Papa.unparse functioneel getest met 3 dialects (komma, puntkomma, tab) → output correct
+- Browser-open: index.html geopend
+
+### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.1.3: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore — codenaam te kiezen uit paardenrassen-thema"**
+
+### Codenaam-suggesties voor v0.1.3 (opmaak)
+- **Knabstrupper** (gespikkeld paardenras, past visueel bij opmaak)
+- **Tinker** / Gypsy Vanner
+- **Marwari** (Indiaas, kromme oren — sierlijk)
+- **Andalusian** (al gebruikt in oude v0.0.3 — niet hergebruiken; we hebben dat al)
+
+Kiezen we bij start v0.1.3.

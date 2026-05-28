@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CSVHorse — CSV viewer &amp; editor</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="CSVHorse v0.1.1-Akhal-Teke">
+  <meta name="generator" content="CSVHorse v0.1.2-Appaloosa">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -357,7 +357,7 @@
 
 <header class="app">
   <h1>CSV<span class="accent">Horse</span></h1>
-  <span class="badge">v0.1.1-Akhal-Teke</span>
+  <span class="badge">v0.1.2-Appaloosa</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -379,7 +379,7 @@
   <button disabled title="Volgt in v0.1.2-Appaloosa">B I U  Opmaak</button>
   <button disabled title="Volgt in v0.2.0-Mustang">🔍 Zoek/vervang</button>
   <span class="sep"></span>
-  <button disabled title="Volgt in v0.4.0-Shire">⬇ Exporteer</button>
+  <button id="btnExport" title="Exporteer huidige view als CSV (contextueel: SQL-result / gefilterd / alle data)" disabled>⬇ Exporteer</button>
   <span class="stats" id="stats">geen data</span>
 </div>
 
@@ -449,7 +449,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  CSVHorse v0.1.1-Akhal-Teke (codenaam Akhal-Teke) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  CSVHorse v0.1.2-Appaloosa (codenaam Appaloosa) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -980,6 +980,60 @@ function SetCellCommand(r, c, oldVal, newVal) {
 }
 
 /* ============================================================
+ * ExportService — basic CSV export (v0.1.2-Appaloosa)
+ * Contextueel: SQL-result / gefilterde view / alle data.
+ * Roundtrip-met-__style_* volgt in v0.4.0-Shire.
+ * ============================================================ */
+const ExportService = {
+  exportCurrent() {
+    if (DataStore.isEmpty() && !SQLEngine.active) {
+      UI.showToast('Geen data om te exporteren', 'warn');
+      return;
+    }
+    let rows, cols, mode;
+    if (SQLEngine.active && SQLEngine.result) {
+      rows = SQLEngine.result.rows;
+      cols = SQLEngine.result.cols;
+      mode = 'sql';
+    } else if (Filter.isActive()) {
+      const visible = Filter.visibleRowIndexes();
+      rows = visible.map(r => DataStore.rows[r]).filter(r => r);
+      cols = DataStore.cols.slice();
+      mode = 'filtered';
+    } else {
+      rows = DataStore.rows;
+      cols = DataStore.cols.slice();
+      mode = 'all';
+    }
+    const delim = (DataStore.dialect && DataStore.dialect.delimiter) || ',';
+    const table = [cols].concat(rows);
+    const csv = Papa.unparse(table, { delimiter: delim, newline: '\r\n' });
+    const ts = this._timestamp();
+    const base = (DataStore.fileName || 'csvhorse')
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/[^a-zA-Z0-9._-]+/g, '_') || 'csvhorse';
+    const filename = `${base}_${mode}_${ts}.csv`;
+    this._download(csv, filename);
+    UI.showToast(`Geëxporteerd: ${rows.length} rij${rows.length === 1 ? '' : 'en'} → ${filename}`, 'ok');
+  },
+
+  _timestamp() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+  },
+
+  _download(content, filename) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+};
+
+/* ============================================================
  * IO Layer
  * ============================================================ */
 const IO = {
@@ -1269,6 +1323,7 @@ const UI = {
       btnRedo:          document.getElementById('btnRedo'),
       btnFilter:        document.getElementById('btnFilter'),
       btnSql:           document.getElementById('btnSql'),
+      btnExport:        document.getElementById('btnExport'),
       filterPanel:      document.getElementById('filterPanel'),
       filterCol:        document.getElementById('filterCol'),
       filterOp:         document.getElementById('filterOp'),
@@ -1306,6 +1361,7 @@ const UI = {
     this.wireUndoRedoButtons();
     this.wireFilterPanel();
     this.wireSqlPanel();
+    this.wireExportButton();
     this.wireDragDrop();
     this.wireTableClicks();
     this.wireKeyboard();
@@ -1350,6 +1406,10 @@ const UI = {
   wireUndoRedoButtons() {
     this.els.btnUndo.addEventListener('click', () => this.undo());
     this.els.btnRedo.addEventListener('click', () => this.redo());
+  },
+
+  wireExportButton() {
+    this.els.btnExport.addEventListener('click', () => ExportService.exportCurrent());
   },
 
   wireFilterPanel() {
@@ -1663,6 +1723,7 @@ const UI = {
       this.els.btnEdit.disabled = true;
       this.els.btnFilter.disabled = true;
       this.els.btnSql.disabled = true;
+      this.els.btnExport.disabled = true;
       this.els.stats.textContent = 'geen data';
       this.els.phaseBadge.textContent = 'leeg';
       this.els.phaseBadge.classList.remove('filter-on', 'sql-on');
@@ -1681,6 +1742,7 @@ const UI = {
     this.els.btnClear.disabled = false;
     this.els.btnFilter.disabled = false;
     this.els.btnSql.disabled = false;
+    this.els.btnExport.disabled = false;
     Renderer.renderAll();
     this.updateStats();
     this.refreshPhaseBadge();
