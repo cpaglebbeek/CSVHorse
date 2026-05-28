@@ -2,9 +2,9 @@
   "product": "SheetHorse",
   "branch": "sheethorse",
   "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch) — incl. cherry-pick v0.2.0.3 header-edit",
-  "version": "0.2.0",
-  "codename": "Andalusian",
+  "version": "0.3.0",
+  "codename": "Trakehner",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "Multi-sheet runtime support: DataStore.sheets[], tab-strip onderaan, switchTo() met per-sheet state-snapshot (undo/redo/filter/selection/search), XLSX import laadt alle sheets, XLSX export multi-sheet, CSV-import vraag toevoegen/vervangen, sheet-add/-rename/-delete; sheet-naam-validatie Excel-regels"
+  "phase": "Relaties-tabblad: speciale 🔗 Relaties-tab in tab-strip waar FK-relaties tussen sheets gedefinieerd worden. Auto-detect (sheet_id ← sheet.id), kardinaliteit (1-1/1-N/N-1/N-N), optionele naam. Persistent via _relations-sheet bij XLSX-export/import. Sheet-rename/delete updaten referenties."
 }
