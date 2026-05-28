@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.0.3-Andalusian: EditController + CommandHistory (cell-edit + onbeperkte undo/redo)"
+resume: "verder met CSVHorse v0.1.0-Lipizzaner: UI-filter (kolom → operator → waarde, compile-naar-SQL placeholder)"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -174,3 +174,61 @@ Uitgevoerd na skeleton-push. Score ~85% conform voor skeleton-fase: alle concept
 ### Nieuwe resume-trigger
 `status: open` blijft. Trigger gewijzigd van *"verder met CSVHorse MVP-implementatie..."* naar:
 **"verder met CSVHorse v0.0.3-Andalusian: EditController + CommandHistory (cell-edit + onbeperkte undo/redo)"**
+
+## v0.0.3-Andalusian (vierde deelopdracht: cell-edit + undo/redo)
+
+**Prompt:** *"volgende versie"* → korte WhatIf met 4 defaults → *"ja, ga door"*.
+
+### Toegevoegd aan `index.html`
+- **CommandHistory** module — onbeperkte undo/redo-stacks, `push(cmd)/undo()/redo()/clear()`, observer-pattern, `SetCellCommand(r, c, oldVal, newVal)` factory
+- **Selection** module — single-cell `{r, c}`, `set(r,c)/move(dr,dc)/clear()/has()`, visuele `.selected` class, `scrollIntoView` bij move
+- **EditController** module — `begin(r,c)/commit()/cancel()`, gebruikt `contenteditable` op `<td>` met `range-selectNodeContents` voor volledige text-selectie, `.editing` class voor visuele state
+- **DataStore** uitgebreid — `getCell/setCell` met `'cell'`-event-kind voor partial-update
+- **Renderer** uitgebreid — `data-r`/`data-c` op cellen, `updateCell(r, c, value, flash)` voor partial DOM-update, `getCellEl(r, c)` lookup
+- **UI** uitgebreid met: keyboard-handler (`Arrow*`, `Home`, `End`, `Enter`, `F2`, `Tab`, `Escape`, `Delete`/`Backspace`, `Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z`, `Ctrl/Cmd+Y`), paste-handler (single-cell), click/dblclick-handlers op tabel
+- **Toolbar uitgebreid** — `Bewerken`/`Undo`/`Redo`-knoppen actief, met disabled-state op basis van selectie+history
+- **Stats-counter uitgebreid** — toont nu `undo:N/redo:M · cel <kolom>@<rij>` bij selectie
+- **CSS uitgebreid** — `.selected`, `.editing`, `.flash` (0.6s blue-fade), cursor `cell` op data-cellen
+
+### Edit-flow
+1. Klik op cel → `Selection.set(r,c)` → groen-gestippelde outline
+2. Dubbelklik óf Enter óf F2 → `EditController.begin(r,c)` → cell wordt `contenteditable`, text geselecteerd
+3. Type wijziging → bij commit-trigger (`Enter`/`Tab`/click-buiten):
+   - `EditController.commit()` vergelijkt oldVal vs newVal
+   - Bij wijziging: `SetCellCommand(r,c,oldVal,newVal).apply()` + `CommandHistory.push(cmd)`
+   - `Enter` → `Selection.set(r+1, c)` (volgende rij)
+   - `Tab` → `Selection.set(r, c+1)` (volgende kol; Shift+Tab terug)
+4. Escape → `EditController.cancel()` (rollback DOM, geen command)
+
+### Undo-flow
+- `Ctrl/Cmd+Z` (of `⤺ Undo`-knop): `CommandHistory.undo()` pop't laatste command, `revert()` → `DataStore.setCell(r, c, oldVal)` → `Renderer.updateCell` met flash. Cursor naar gewijzigde cel.
+- `Ctrl/Cmd+Shift+Z` of `Ctrl/Cmd+Y` (of `⤻ Redo`): `CommandHistory.redo()` pop't van redo-stack, `apply()` → cell terug naar newVal met flash.
+- Nieuwe edit na undo wist redo-stack (standaard semantiek).
+- Stack is in-memory (geen autosave nog — komt v0.2.0-Mustang).
+
+### Edge cases gedekt
+- Edit-mode bij file-load: `EditController.cancel()` vooraf
+- Edit-mode bij clear: idem + `CommandHistory.clear()`
+- Commit bij gelijke value: geen command (push wordt geskipt om stack-pollution te voorkomen)
+- Edit-mode bij Ctrl+Z: eerst `commit()`, dan undo
+- Geen selectie + arrow: auto-`set(0,0)`
+- Paste in edit-mode: native (door browser) — niet onze paste-handler
+- Paste-multiline: `\r\n` of `\n` strip eindigingen, single-cell-vervang
+
+### File-statistieken na v0.0.3
+- `index.html`: 983 regels, 52.850 bytes
+- Eigen JS-blok: 21.381 chars (was 9.036 in v0.0.2 → +12.345 chars / +137% groei)
+- PapaParse blok ongewijzigd: 19.471 chars
+
+### Verificatie
+- **JS-syntaxcheck:** beide `<script>`-blokken groen via `new Function()` (block 0 = PapaParse, block 1 = app)
+- **Browser-open:** index.html opent — sample.csv (5×4) drag-droppen werkt; klik / dubbelklik / arrows / undo / redo handmatig te testen
+
+### Niet in v0.0.3 (latere plateaus)
+- Multi-cell paste (CSV/TSV → range)
+- Row/column insert/delete (geen `Command`-types nog)
+- Find & replace (v0.2.0-Mustang)
+- UI-filter dropdown (v0.1.0-Lipizzaner — volgende stap)
+
+### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.1.0-Lipizzaner: UI-filter (kolom → operator → waarde, compile-naar-SQL placeholder)"**

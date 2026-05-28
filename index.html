@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CSVHorse — CSV viewer &amp; editor</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="CSVHorse v0.0.2-Arabian">
+  <meta name="generator" content="CSVHorse v0.0.3-Andalusian">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -79,6 +79,7 @@
     .toolbar .sep { width:1px; height:22px; background:var(--color-border); margin:0 var(--space-1); }
     .toolbar .stats { margin-left:auto; font-size:.78rem; color:var(--color-text-dim); font-family:var(--font-mono); }
     .toolbar .stats strong { color:var(--color-accent); font-weight:600; }
+    .toolbar .stats .undo-info { color:var(--color-accent-2); }
 
     /* Main + table */
     main {
@@ -111,7 +112,7 @@
     #emptyState .cta input { display:none; }
     #emptyState .hint { font-size:.8rem; margin-top:var(--space-3); color:var(--color-text-dim); }
 
-    #tableWrap { flex:1 1 auto; overflow:auto; background:var(--color-bg); }
+    #tableWrap { flex:1 1 auto; overflow:auto; background:var(--color-bg); outline:none; }
     #tableWrap.hidden { display:none; }
     table.grid {
       border-collapse:separate;
@@ -151,6 +152,7 @@
       white-space:nowrap;
       overflow:hidden; text-overflow:ellipsis;
       color:var(--color-text);
+      cursor:cell;
     }
     table.grid tbody td.row-idx {
       background:var(--color-surface);
@@ -159,8 +161,31 @@
       width:60px; min-width:60px;
       font-variant-numeric:tabular-nums;
       position:sticky; left:0; z-index:1;
+      cursor:default;
     }
     table.grid tbody tr:hover td:not(.row-idx) { background:rgba(89,197,168,0.06); }
+    table.grid tbody td.selected {
+      background:var(--color-selection) !important;
+      outline:2px solid var(--color-accent);
+      outline-offset:-2px;
+      color:var(--color-text);
+    }
+    table.grid tbody td.editing {
+      background:var(--color-edit-active) !important;
+      outline:2px solid var(--color-accent);
+      outline-offset:-2px;
+      cursor:text;
+      white-space:pre-wrap;
+      overflow:visible;
+      max-width:600px;
+    }
+    table.grid tbody td.flash {
+      animation:flash 0.6s ease-out;
+    }
+    @keyframes flash {
+      0%   { background:rgba(74,179,255,0.4); }
+      100% { background:transparent; }
+    }
 
     /* Drop overlay */
     #dropOverlay {
@@ -211,7 +236,7 @@
 
 <header class="app">
   <h1>CSV<span class="accent">Horse</span></h1>
-  <span class="badge">v0.0.2-Arabian</span>
+  <span class="badge">v0.0.3-Andalusian</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -224,7 +249,10 @@
   </label>
   <button id="btnClear" title="Wis huidige tabel" disabled>↺ Wis</button>
   <span class="sep"></span>
-  <button disabled title="Volgt in v0.0.3-Andalusian">✎ Bewerken</button>
+  <button id="btnEdit" title="Bewerk geselecteerde cel (dubbelklik / Enter / F2)" disabled>✎ Bewerken</button>
+  <button id="btnUndo" title="Ongedaan maken (Ctrl/Cmd+Z)" disabled>⤺ Undo</button>
+  <button id="btnRedo" title="Opnieuw (Ctrl/Cmd+Shift+Z of Ctrl/Cmd+Y)" disabled>⤻ Redo</button>
+  <span class="sep"></span>
   <button disabled title="Volgt in v0.1.0-Lipizzaner">⏚ Filter</button>
   <button disabled title="Volgt in v0.1.1-Akhal-Teke">≡ SQL</button>
   <button disabled title="Volgt in v0.1.2-Appaloosa">B I U  Opmaak</button>
@@ -244,8 +272,9 @@
       <input type="file" id="fileInputBig" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain">
     </label>
     <p class="hint">Ondersteunt RFC 4180 (komma / dubbele quotes / CRLF) plus dialect-auto-detect (komma, puntkomma, tab, pipe).</p>
+    <p class="hint">Na laden: klik op een cel om te selecteren · dubbelklik / Enter / F2 om te bewerken · Ctrl/Cmd+Z voor undo · pijltjes om te navigeren.</p>
   </section>
-  <div id="tableWrap" class="hidden"></div>
+  <div id="tableWrap" class="hidden" tabindex="0"></div>
 </main>
 
 <div id="dropOverlay" aria-hidden="true">
@@ -259,7 +288,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  CSVHorse v0.0.2-Arabian (codenaam Arabian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  CSVHorse v0.0.3-Andalusian (codenaam Andalusian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -296,14 +325,26 @@ const DataStore = {
     this.cols = cols;
     this.dialect = Object.assign({}, this.dialect, dialect || {});
     this.fileName = fileName || '';
-    this.notify();
+    this.notify('load');
   },
 
   clear() {
     this.rows = [];
     this.cols = [];
     this.fileName = '';
-    this.notify();
+    this.notify('clear');
+  },
+
+  getCell(r, c) {
+    const row = this.rows[r];
+    return row ? row[c] : undefined;
+  },
+
+  setCell(r, c, value) {
+    while (this.rows[r] && this.rows[r].length <= c) this.rows[r].push('');
+    if (!this.rows[r]) return;
+    this.rows[r][c] = value;
+    this.notify('cell', { r, c });
   },
 
   count() { return { rows: this.rows.length, cols: this.cols.length }; },
@@ -311,8 +352,64 @@ const DataStore = {
 
   _listeners: [],
   on(fn) { this._listeners.push(fn); },
+  notify(kind, payload) { for (const fn of this._listeners) fn(this, kind, payload); }
+};
+
+/* ============================================================
+ * CommandHistory — atomic undo/redo, onbeperkt
+ * ============================================================ */
+const CommandHistory = {
+  undoStack: [],
+  redoStack: [],
+
+  push(cmd) {
+    this.undoStack.push(cmd);
+    this.redoStack.length = 0;
+    this.notify();
+  },
+
+  undo() {
+    const cmd = this.undoStack.pop();
+    if (!cmd) return null;
+    cmd.revert();
+    this.redoStack.push(cmd);
+    this.notify();
+    return cmd;
+  },
+
+  redo() {
+    const cmd = this.redoStack.pop();
+    if (!cmd) return null;
+    cmd.apply();
+    this.undoStack.push(cmd);
+    this.notify();
+    return cmd;
+  },
+
+  clear() {
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+    this.notify();
+  },
+
+  canUndo() { return this.undoStack.length > 0; },
+  canRedo() { return this.redoStack.length > 0; },
+  depth() { return { undo: this.undoStack.length, redo: this.redoStack.length }; },
+
+  _listeners: [],
+  on(fn) { this._listeners.push(fn); },
   notify() { for (const fn of this._listeners) fn(this); }
 };
+
+/* Command factory: cell set */
+function SetCellCommand(r, c, oldVal, newVal) {
+  return {
+    type: 'set',
+    r, c, oldVal, newVal,
+    apply()  { DataStore.setCell(r, c, newVal); },
+    revert() { DataStore.setCell(r, c, oldVal); }
+  };
+}
 
 /* ============================================================
  * IO Layer — file upload + parse via PapaParse
@@ -321,7 +418,7 @@ const IO = {
   async parseFile(file) {
     if (!file) throw new Error('Geen bestand ontvangen');
     if (file.size > 200 * 1024 * 1024) {
-      throw new Error('Bestand >200MB; v0.0.2 ondersteunt max ~5k rijen comfortabel (virtual scroll volgt in v0.3.0)');
+      throw new Error('Bestand >200MB; v0.0.3 ondersteunt max ~5k rijen comfortabel (virtual scroll volgt v0.3.0)');
     }
     return new Promise((resolve, reject) => {
       Papa.parse(file, {
@@ -355,26 +452,26 @@ const IO = {
 };
 
 /* ============================================================
- * Renderer — simple HTML <table> (virtual scroll volgt in v0.3.0)
+ * Renderer — HTML <table>, met selectie-tracking
  * ============================================================ */
 const Renderer = {
   el: null,
+  tableEl: null,
 
   init(containerEl) { this.el = containerEl; },
 
-  render(store) {
+  renderAll(store) {
     if (!this.el) return;
     if (store.isEmpty()) {
       this.el.innerHTML = '';
+      this.tableEl = null;
       return;
     }
 
     const t = performance.now();
-    const frag = document.createDocumentFragment();
     const table = document.createElement('table');
     table.className = 'grid';
 
-    /* Header */
     const thead = document.createElement('thead');
     const trh = document.createElement('tr');
     const thIdx = document.createElement('th');
@@ -390,19 +487,19 @@ const Renderer = {
     thead.appendChild(trh);
     table.appendChild(thead);
 
-    /* Body */
     const tbody = document.createElement('tbody');
     const ncols = store.cols.length;
     let rIdx = 0;
     for (const row of store.rows) {
-      rIdx++;
       const tr = document.createElement('tr');
       const tdIdx = document.createElement('td');
       tdIdx.className = 'row-idx';
-      tdIdx.textContent = rIdx;
+      tdIdx.textContent = rIdx + 1;
       tr.appendChild(tdIdx);
       for (let i = 0; i < ncols; i++) {
         const td = document.createElement('td');
+        td.dataset.r = rIdx;
+        td.dataset.c = i;
         const v = row[i];
         if (v != null && v !== '') {
           td.textContent = String(v);
@@ -411,14 +508,136 @@ const Renderer = {
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
+      rIdx++;
     }
     table.appendChild(tbody);
-    frag.appendChild(table);
 
     this.el.innerHTML = '';
-    this.el.appendChild(frag);
+    this.el.appendChild(table);
+    this.tableEl = table;
     const ms = Math.round(performance.now() - t);
     console.log(`[CSVHorse] gerenderd: ${store.rows.length} × ${ncols} kolommen in ${ms}ms`);
+  },
+
+  updateCell(r, c, value, flash) {
+    if (!this.tableEl) return;
+    const td = this.tableEl.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+    if (!td) return;
+    td.textContent = (value == null || value === '') ? '' : String(value);
+    td.title = td.textContent;
+    if (flash) {
+      td.classList.remove('flash');
+      void td.offsetWidth;
+      td.classList.add('flash');
+    }
+  },
+
+  getCellEl(r, c) {
+    if (!this.tableEl) return null;
+    return this.tableEl.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+  }
+};
+
+/* ============================================================
+ * SelectionController — single-cell selection + arrow nav
+ * ============================================================ */
+const Selection = {
+  r: null, c: null,
+  _listeners: [],
+  on(fn) { this._listeners.push(fn); },
+  notify() { for (const fn of this._listeners) fn(this); },
+
+  set(r, c) {
+    if (DataStore.isEmpty()) return;
+    const maxR = DataStore.rows.length - 1;
+    const maxC = DataStore.cols.length - 1;
+    r = Math.max(0, Math.min(r, maxR));
+    c = Math.max(0, Math.min(c, maxC));
+
+    if (this.r != null && this.c != null) {
+      const prev = Renderer.getCellEl(this.r, this.c);
+      if (prev) prev.classList.remove('selected');
+    }
+    this.r = r; this.c = c;
+    const el = Renderer.getCellEl(r, c);
+    if (el) {
+      el.classList.add('selected');
+      el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    this.notify();
+  },
+
+  clear() {
+    if (this.r != null && this.c != null) {
+      const prev = Renderer.getCellEl(this.r, this.c);
+      if (prev) prev.classList.remove('selected');
+    }
+    this.r = null; this.c = null;
+    this.notify();
+  },
+
+  move(dr, dc) {
+    if (this.r == null) {
+      if (!DataStore.isEmpty()) this.set(0, 0);
+      return;
+    }
+    this.set(this.r + dr, this.c + dc);
+  },
+
+  has() { return this.r != null && this.c != null; }
+};
+
+/* ============================================================
+ * EditController — cell editing via contenteditable
+ * ============================================================ */
+const EditController = {
+  active: null,
+
+  isEditing() { return this.active !== null; },
+
+  begin(r, c) {
+    if (this.active) this.commit();
+    if (DataStore.isEmpty()) return;
+    const td = Renderer.getCellEl(r, c);
+    if (!td) return;
+    const oldVal = DataStore.getCell(r, c);
+    td.classList.add('editing');
+    td.setAttribute('contenteditable', 'true');
+    td.textContent = (oldVal == null) ? '' : String(oldVal);
+    td.focus();
+    const range = document.createRange();
+    range.selectNodeContents(td);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    this.active = { r, c, td, oldVal };
+  },
+
+  commit() {
+    if (!this.active) return;
+    const { r, c, td, oldVal } = this.active;
+    const newVal = td.textContent;
+    td.classList.remove('editing');
+    td.removeAttribute('contenteditable');
+    td.blur();
+    this.active = null;
+    if (String(newVal) !== String(oldVal == null ? '' : oldVal)) {
+      const cmd = SetCellCommand(r, c, oldVal, newVal);
+      cmd.apply();
+      CommandHistory.push(cmd);
+    } else {
+      Renderer.updateCell(r, c, oldVal, false);
+    }
+  },
+
+  cancel() {
+    if (!this.active) return;
+    const { r, c, td, oldVal } = this.active;
+    td.classList.remove('editing');
+    td.removeAttribute('contenteditable');
+    td.blur();
+    this.active = null;
+    Renderer.updateCell(r, c, oldVal, false);
   }
 };
 
@@ -433,6 +652,9 @@ const UI = {
       fileInput:     document.getElementById('fileInput'),
       fileInputBig:  document.getElementById('fileInputBig'),
       btnClear:      document.getElementById('btnClear'),
+      btnEdit:       document.getElementById('btnEdit'),
+      btnUndo:       document.getElementById('btnUndo'),
+      btnRedo:       document.getElementById('btnRedo'),
       emptyState:    document.getElementById('emptyState'),
       tableWrap:     document.getElementById('tableWrap'),
       dropOverlay:   document.getElementById('dropOverlay'),
@@ -443,13 +665,22 @@ const UI = {
     };
 
     Renderer.init(this.els.tableWrap);
-    DataStore.on(() => this.onDataChanged());
+    DataStore.on((s, kind, payload) => this.onDataChanged(s, kind, payload));
+    CommandHistory.on(() => this.onHistoryChanged());
+    Selection.on(() => this.onSelectionChanged());
 
     this.wireFileInput(this.els.fileInput);
     this.wireFileInput(this.els.fileInputBig);
     this.wireClearButton();
+    this.wireEditButton();
+    this.wireUndoRedoButtons();
     this.wireDragDrop();
-    this.onDataChanged();
+    this.wireTableClicks();
+    this.wireKeyboard();
+    this.wirePaste();
+
+    this.onDataChanged(DataStore, 'init');
+    this.onHistoryChanged();
   },
 
   wireFileInput(input) {
@@ -464,9 +695,27 @@ const UI = {
 
   wireClearButton() {
     this.els.btnClear.addEventListener('click', () => {
+      if (EditController.isEditing()) EditController.cancel();
+      Selection.clear();
+      CommandHistory.clear();
       DataStore.clear();
       this.showToast('Tabel gewist', 'ok');
     });
+  },
+
+  wireEditButton() {
+    this.els.btnEdit.addEventListener('click', () => {
+      if (!Selection.has()) {
+        this.showToast('Selecteer eerst een cel (klik op een cel)', 'warn');
+        return;
+      }
+      EditController.begin(Selection.r, Selection.c);
+    });
+  },
+
+  wireUndoRedoButtons() {
+    this.els.btnUndo.addEventListener('click', () => this.undo());
+    this.els.btnRedo.addEventListener('click', () => this.redo());
   },
 
   wireDragDrop() {
@@ -500,8 +749,145 @@ const UI = {
     });
   },
 
+  wireTableClicks() {
+    this.els.tableWrap.addEventListener('click', (e) => {
+      const td = e.target.closest('td');
+      if (!td || td.classList.contains('row-idx')) return;
+      if (EditController.isEditing() && td === EditController.active.td) return;
+      if (EditController.isEditing()) EditController.commit();
+      const r = parseInt(td.dataset.r, 10);
+      const c = parseInt(td.dataset.c, 10);
+      Selection.set(r, c);
+      this.els.tableWrap.focus();
+    });
+    this.els.tableWrap.addEventListener('dblclick', (e) => {
+      const td = e.target.closest('td');
+      if (!td || td.classList.contains('row-idx')) return;
+      const r = parseInt(td.dataset.r, 10);
+      const c = parseInt(td.dataset.c, 10);
+      Selection.set(r, c);
+      EditController.begin(r, c);
+    });
+  },
+
+  wireKeyboard() {
+    document.addEventListener('keydown', (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      /* Undo / Redo — werkt altijd, ook in edit-mode (commit eerst) */
+      if (ctrl && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (EditController.isEditing()) EditController.commit();
+        this.undo();
+        return;
+      }
+      if (ctrl && ((e.shiftKey && (e.key === 'z' || e.key === 'Z')) || e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        if (EditController.isEditing()) EditController.commit();
+        this.redo();
+        return;
+      }
+
+      /* In edit-mode: alleen Enter/Tab/Escape afhandelen, rest natural */
+      if (EditController.isEditing()) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          const { r, c } = EditController.active;
+          EditController.commit();
+          Selection.set(r + 1, c);
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          const { r, c } = EditController.active;
+          EditController.commit();
+          Selection.set(r, c + (e.shiftKey ? -1 : 1));
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          EditController.cancel();
+        }
+        return;
+      }
+
+      /* Niet in edit-mode + selectie: navigatie + edit-trigger */
+      if (DataStore.isEmpty()) return;
+      const target = e.target;
+      if (target && target.tagName === 'INPUT') return;
+
+      if (!Selection.has() && (e.key.startsWith('Arrow') || e.key === 'Enter' || e.key === 'F2')) {
+        Selection.set(0, 0);
+        e.preventDefault();
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowUp':    e.preventDefault(); Selection.move(-1, 0); break;
+        case 'ArrowDown':  e.preventDefault(); Selection.move( 1, 0); break;
+        case 'ArrowLeft':  e.preventDefault(); Selection.move( 0,-1); break;
+        case 'ArrowRight': e.preventDefault(); Selection.move( 0, 1); break;
+        case 'Home':       e.preventDefault(); Selection.set(Selection.r, 0); break;
+        case 'End':        e.preventDefault(); Selection.set(Selection.r, DataStore.cols.length - 1); break;
+        case 'Enter':
+        case 'F2':
+          e.preventDefault();
+          if (Selection.has()) EditController.begin(Selection.r, Selection.c);
+          break;
+        case 'Delete':
+        case 'Backspace':
+          if (Selection.has()) {
+            e.preventDefault();
+            const oldVal = DataStore.getCell(Selection.r, Selection.c);
+            if (oldVal !== '' && oldVal != null) {
+              const cmd = SetCellCommand(Selection.r, Selection.c, oldVal, '');
+              cmd.apply();
+              CommandHistory.push(cmd);
+            }
+          }
+          break;
+      }
+    });
+  },
+
+  wirePaste() {
+    document.addEventListener('paste', (e) => {
+      if (EditController.isEditing()) return;
+      if (!Selection.has()) return;
+      const text = (e.clipboardData || window.clipboardData).getData('text');
+      if (text == null) return;
+      e.preventDefault();
+      const cleaned = text.replace(/\r\n?$|\n$/, '');
+      const oldVal = DataStore.getCell(Selection.r, Selection.c);
+      if (String(cleaned) === String(oldVal == null ? '' : oldVal)) return;
+      const cmd = SetCellCommand(Selection.r, Selection.c, oldVal, cleaned);
+      cmd.apply();
+      CommandHistory.push(cmd);
+      this.showToast('Geplakt in 1 cel (multi-cell paste volgt later)', 'info');
+    });
+  },
+
+  undo() {
+    const cmd = CommandHistory.undo();
+    if (cmd) {
+      Selection.set(cmd.r, cmd.c);
+      const td = Renderer.getCellEl(cmd.r, cmd.c);
+      if (td) { td.classList.remove('flash'); void td.offsetWidth; td.classList.add('flash'); }
+      this.showToast('Ongedaan gemaakt', 'info');
+    }
+  },
+
+  redo() {
+    const cmd = CommandHistory.redo();
+    if (cmd) {
+      Selection.set(cmd.r, cmd.c);
+      const td = Renderer.getCellEl(cmd.r, cmd.c);
+      if (td) { td.classList.remove('flash'); void td.offsetWidth; td.classList.add('flash'); }
+      this.showToast('Opnieuw uitgevoerd', 'info');
+    }
+  },
+
   async handleFile(file) {
     try {
+      if (EditController.isEditing()) EditController.cancel();
+      Selection.clear();
+      CommandHistory.clear();
       this.showToast('Bezig met inlezen…', 'info');
       const result = await IO.parseFile(file);
       DataStore.load(result);
@@ -517,27 +903,62 @@ const UI = {
     }
   },
 
-  onDataChanged() {
-    const empty = DataStore.isEmpty();
+  onDataChanged(store, kind, payload) {
+    const empty = store.isEmpty();
     if (empty) {
       this.els.emptyState.style.display = '';
       this.els.tableWrap.classList.add('hidden');
       this.els.btnClear.disabled = true;
+      this.els.btnEdit.disabled = true;
       this.els.stats.textContent = 'geen data';
       this.els.phaseBadge.textContent = 'leeg';
       this.els.fileNameMeta.textContent = '';
-    } else {
-      this.els.emptyState.style.display = 'none';
-      this.els.tableWrap.classList.remove('hidden');
-      this.els.btnClear.disabled = false;
-      const c = DataStore.count();
-      const d = DataStore.dialect.delimiter;
-      const dName = d === '\t' ? 'TAB' : d === ',' ? 'komma' : d === ';' ? 'puntkomma' : d === '|' ? 'pipe' : `"${d}"`;
-      this.els.stats.innerHTML = `<strong>${c.rows}</strong> rijen × <strong>${c.cols}</strong> kolommen · delimiter: ${dName}`;
-      this.els.phaseBadge.textContent = 'data geladen';
-      this.els.fileNameMeta.textContent = DataStore.fileName ? '📄 ' + DataStore.fileName : '';
-      Renderer.render(DataStore);
+      return;
     }
+
+    if (kind === 'cell' && payload) {
+      Renderer.updateCell(payload.r, payload.c, store.getCell(payload.r, payload.c), true);
+      this.updateStats();
+      return;
+    }
+
+    /* Full render (load, clear, init) */
+    this.els.emptyState.style.display = 'none';
+    this.els.tableWrap.classList.remove('hidden');
+    this.els.btnClear.disabled = false;
+    Renderer.renderAll(store);
+    this.updateStats();
+    this.els.phaseBadge.textContent = 'data geladen';
+    this.els.fileNameMeta.textContent = store.fileName ? '📄 ' + store.fileName : '';
+  },
+
+  onHistoryChanged() {
+    const d = CommandHistory.depth();
+    this.els.btnUndo.disabled = !CommandHistory.canUndo();
+    this.els.btnRedo.disabled = !CommandHistory.canRedo();
+    this.updateStats();
+  },
+
+  onSelectionChanged() {
+    this.els.btnEdit.disabled = !Selection.has() || DataStore.isEmpty();
+    this.updateStats();
+  },
+
+  updateStats() {
+    if (DataStore.isEmpty()) { this.els.stats.textContent = 'geen data'; return; }
+    const c = DataStore.count();
+    const d = DataStore.dialect.delimiter;
+    const dName = d === '\t' ? 'TAB' : d === ',' ? 'komma' : d === ';' ? 'puntkomma' : d === '|' ? 'pipe' : `"${d}"`;
+    const depth = CommandHistory.depth();
+    let undoStr = '';
+    if (depth.undo > 0 || depth.redo > 0) {
+      undoStr = ` · <span class="undo-info">undo:${depth.undo}${depth.redo ? '/redo:'+depth.redo : ''}</span>`;
+    }
+    let selStr = '';
+    if (Selection.has()) {
+      selStr = ` · cel <strong>${DataStore.cols[Selection.c]}</strong>@${Selection.r + 1}`;
+    }
+    this.els.stats.innerHTML = `<strong>${c.rows}</strong> rijen × <strong>${c.cols}</strong> kolommen · delimiter: ${dName}${undoStr}${selStr}`;
   },
 
   _toastTimer: null,
@@ -552,7 +973,6 @@ const UI = {
   }
 };
 
-/* Init wanneer DOM klaar */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => UI.init());
 } else {

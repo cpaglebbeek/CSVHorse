@@ -1,7 +1,7 @@
 {
-  "version": "0.0.2",
-  "codename": "Arabian",
+  "version": "0.0.3",
+  "codename": "Andalusian",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 1: CSV import + render"
+  "phase": "MVP-stap 2: cell-edit + onbeperkte undo/redo"
 }
