@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CSVHorse — CSV viewer &amp; editor</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="CSVHorse v0.1.3-Knabstrupper">
+  <meta name="generator" content="CSVHorse v0.1.4-Trakehner">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -375,6 +375,73 @@
       100% { background:transparent; }
     }
 
+    /* Modal (export-dialog) */
+    .modal-overlay {
+      position:fixed; inset:0;
+      background:rgba(15,17,21,0.7);
+      display:none;
+      align-items:center; justify-content:center;
+      z-index:1500;
+      padding:var(--space-4);
+    }
+    .modal-overlay.open { display:flex; }
+    .modal {
+      background:var(--color-surface);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-md);
+      padding:var(--space-4);
+      min-width:480px; max-width:680px;
+      max-height:90vh;
+      display:flex; flex-direction:column;
+      gap:var(--space-3);
+      box-shadow:0 10px 40px rgba(0,0,0,0.5);
+    }
+    .modal h3 { margin:0; color:var(--color-accent); font-size:1.1rem; }
+    .modal .modal-body {
+      display:flex; flex-direction:column; gap:var(--space-3);
+    }
+    .modal .modal-body label {
+      display:flex; align-items:center; gap:var(--space-2);
+      font-size:.9rem;
+    }
+    .modal input[type="text"] {
+      flex:1 1 auto;
+      font:inherit; color:var(--color-text);
+      background:var(--color-bg);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 10px;
+      font-family:var(--font-mono);
+    }
+    .modal input[type="text"]:focus { outline:none; border-color:var(--color-accent); }
+    .modal input[type="checkbox"] {
+      width:18px; height:18px; cursor:pointer;
+      accent-color:var(--color-accent);
+    }
+    .modal .modal-hint {
+      font-size:.78rem; color:var(--color-text-dim);
+      padding-left:26px;
+    }
+    .modal .modal-footer {
+      display:flex; gap:var(--space-2); justify-content:flex-end;
+      padding-top:var(--space-2);
+      border-top:1px solid var(--color-border);
+    }
+    .modal .modal-footer button {
+      font:inherit; color:var(--color-text);
+      background:transparent;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 14px;
+      cursor:pointer;
+    }
+    .modal .modal-footer button:hover { border-color:var(--color-accent); color:var(--color-accent); }
+    .modal .modal-footer button.primary {
+      background:var(--color-accent); color:#0a1a14;
+      border-color:var(--color-accent); font-weight:600;
+    }
+    .modal .modal-footer button.primary:hover { background:#7ad8be; color:#0a1a14; }
+
     /* Drop overlay */
     #dropOverlay {
       position:fixed; inset:0;
@@ -424,7 +491,7 @@
 
 <header class="app">
   <h1>CSV<span class="accent">Horse</span></h1>
-  <span class="badge">v0.1.3-Knabstrupper</span>
+  <span class="badge">v0.1.4-Trakehner</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -536,6 +603,30 @@
   <div id="tableWrap" class="hidden" tabindex="0"></div>
 </main>
 
+<div class="modal-overlay" id="exportModal" aria-hidden="true" role="dialog" aria-labelledby="exportModalTitle">
+  <div class="modal">
+    <h3 id="exportModalTitle">⬇ Exporteer CSV</h3>
+    <div class="modal-body">
+      <label>Bestandsnaam:
+        <input type="text" id="exportFilename" spellcheck="false" autocomplete="off">
+      </label>
+      <label>
+        <input type="checkbox" id="exportWithStyles" checked>
+        <span><strong>Met opmaak</strong> — voeg <code>__style_*</code> kolommen toe</span>
+      </label>
+      <div class="modal-hint">Aanvinken bewaart bold/italic/kleur/grootte/etc per cel als extra (verborgen) kolommen. Bij heropenen herkent CSVHorse deze automatisch en laadt de opmaak terug.</div>
+      <label>
+        <input type="checkbox" id="exportWithBom">
+        <span>Met UTF-8 BOM (handig voor oude Excel-versies)</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button id="btnExportCancel">Annuleer</button>
+      <button id="btnExportConfirm" class="primary">⬇ Exporteer</button>
+    </div>
+  </div>
+</div>
+
 <div id="dropOverlay" aria-hidden="true">
   <div class="msg">
     <span>📥</span>
@@ -547,7 +638,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  CSVHorse v0.1.3-Knabstrupper (codenaam Knabstrupper) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  CSVHorse v0.1.4-Trakehner (codenaam Trakehner) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -871,9 +962,9 @@ const DataStore = {
   styles: {},  /* { rowIdx: { colIdx: StyleObj } } — v0.1.3+ */
   dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' },
   fileName: '',
-  load({ rows, cols, dialect, fileName }) {
+  load({ rows, cols, dialect, fileName, styles }) {
     this.rows = rows; this.cols = cols;
-    this.styles = {};
+    this.styles = styles || {};
     this.dialect = Object.assign({}, this.dialect, dialect || {});
     this.fileName = fileName || '';
     this.notify('load');
@@ -1165,36 +1256,76 @@ function ClearStyleCommand(r, c, oldStyleObj) {
  * Roundtrip-met-__style_* volgt in v0.4.0-Shire.
  * ============================================================ */
 const ExportService = {
-  exportCurrent() {
-    if (DataStore.isEmpty() && !SQLEngine.active) {
-      UI.showToast('Geen data om te exporteren', 'warn');
-      return;
-    }
-    let rows, cols, mode;
+  /* Bepaal contextueel: SQL-result / filtered / all */
+  currentSource() {
+    if (DataStore.isEmpty() && !SQLEngine.active) return null;
     if (SQLEngine.active && SQLEngine.result) {
-      rows = SQLEngine.result.rows;
-      cols = SQLEngine.result.cols;
-      mode = 'sql';
-    } else if (Filter.isActive()) {
-      const visible = Filter.visibleRowIndexes();
-      rows = visible.map(r => DataStore.rows[r]).filter(r => r);
-      cols = DataStore.cols.slice();
-      mode = 'filtered';
-    } else {
-      rows = DataStore.rows;
-      cols = DataStore.cols.slice();
-      mode = 'all';
+      return {
+        rows: SQLEngine.result.rows,
+        cols: SQLEngine.result.cols,
+        styles: {},               /* SQL-result heeft geen styles */
+        mode: 'sql',
+        canStyles: false          /* met-opmaak niet relevant voor SQL */
+      };
     }
-    const delim = (DataStore.dialect && DataStore.dialect.delimiter) || ',';
-    const table = [cols].concat(rows);
-    const csv = Papa.unparse(table, { delimiter: delim, newline: '\r\n' });
+    if (Filter.isActive()) {
+      const visible = Filter.visibleRowIndexes();
+      const rows = visible.map(r => DataStore.rows[r]).filter(r => r);
+      /* Map originele styles naar nieuwe row-indexen (filter-gefiltered) */
+      const styles = {};
+      visible.forEach((origR, newR) => {
+        if (DataStore.styles[origR]) styles[newR] = DataStore.styles[origR];
+      });
+      return {
+        rows, cols: DataStore.cols.slice(),
+        styles, mode: 'filtered', canStyles: true
+      };
+    }
+    return {
+      rows: DataStore.rows.slice(),
+      cols: DataStore.cols.slice(),
+      styles: DataStore.styles,
+      mode: 'all', canStyles: true
+    };
+  },
+
+  /* Genereer default-bestandsnaam volgens template */
+  defaultFilename(mode) {
     const ts = this._timestamp();
     const base = (DataStore.fileName || 'csvhorse')
       .replace(/\.[a-z0-9]+$/i, '')
       .replace(/[^a-zA-Z0-9._-]+/g, '_') || 'csvhorse';
-    const filename = `${base}_${mode}_${ts}.csv`;
-    this._download(csv, filename);
-    UI.showToast(`Geëxporteerd: ${rows.length} rij${rows.length === 1 ? '' : 'en'} → ${filename}`, 'ok');
+    return `${base}_${mode}_${ts}.csv`;
+  },
+
+  /* Effectieve export — gebruikt opts { filename, withStyles, withBom } */
+  exportWithOptions(opts) {
+    const src = this.currentSource();
+    if (!src) {
+      UI.showToast('Geen data om te exporteren', 'warn');
+      return;
+    }
+    opts = opts || {};
+    const withStyles = !!opts.withStyles && src.canStyles;
+    const withBom    = !!opts.withBom;
+    let rows = src.rows;
+    let cols = src.cols;
+    if (withStyles) {
+      const flat = IO.flattenStyles(rows, cols, src.styles);
+      rows = flat.rows; cols = flat.cols;
+    }
+    const delim = (DataStore.dialect && DataStore.dialect.delimiter) || ',';
+    const table = [cols].concat(rows);
+    let csv = Papa.unparse(table, { delimiter: delim, newline: '\r\n' });
+    if (withBom) csv = '﻿' + csv;
+    const filename = opts.filename || this.defaultFilename(src.mode);
+    this._download(csv, filename, withBom);
+    let extra = '';
+    if (withStyles) {
+      const styleColCount = cols.length - src.cols.length;
+      extra = ` · +${styleColCount} __style_* kolom${styleColCount === 1 ? '' : 'men'}`;
+    }
+    UI.showToast(`Geëxporteerd: ${rows.length} rij${rows.length === 1 ? '' : 'en'} → ${filename}${extra}`, 'ok');
   },
 
   _timestamp() {
@@ -1213,14 +1344,24 @@ const ExportService = {
   }
 };
 
+/* Hashtag pseudo-alias zodat externe code (legacy) blijft werken */
+ExportService.exportCurrent = function() {
+  /* Default-aanroep ZONDER dialog wordt door UI.openExportDialog vervangen.
+     Direct hier: alleen all-data zonder styles (fallback). */
+  ExportService.exportWithOptions({ withStyles: false, withBom: false });
+};
+
 /* ============================================================
- * IO Layer
+ * IO Layer — parseFile + style-roundtrip (v0.1.4-Trakehner)
  * ============================================================ */
 const IO = {
+  STYLE_COL_PREFIX: '__style_',
+  STYLE_COL_PATTERN: /^__style_([a-zA-Z]+)__(.+)$/,
+
   async parseFile(file) {
     if (!file) throw new Error('Geen bestand ontvangen');
     if (file.size > 200 * 1024 * 1024) {
-      throw new Error('Bestand >200MB; v0.1.1 ondersteunt max ~5k rijen comfortabel (virtual scroll volgt v0.3.0)');
+      throw new Error('Bestand >200MB; v0.1.4 ondersteunt max ~5k rijen comfortabel (virtual scroll volgt v0.3.0)');
     }
     return new Promise((resolve, reject) => {
       Papa.parse(file, {
@@ -1230,23 +1371,131 @@ const IO = {
           if (!Array.isArray(data) || data.length === 0) {
             reject(new Error('Bestand leeg of niet leesbaar')); return;
           }
-          const headers = data[0].map((h, i) => (h === '' || h == null) ? `col_${i + 1}` : String(h));
-          const rows = data.slice(1);
+          let headers = data[0].map((h, i) => (h === '' || h == null) ? `col_${i + 1}` : String(h));
+          let rows = data.slice(1);
           const meta = results.meta || {};
+          /* Lift __style_*-kolommen naar styles-object (B-roundtrip) */
+          const lifted = IO.liftStyles(rows, headers);
           resolve({
-            rows, cols: headers,
+            rows: lifted.rows,
+            cols: lifted.cols,
+            styles: lifted.styles,
             dialect: {
               delimiter: meta.delimiter || ',',
               newline: meta.linebreak || '\n',
               quoteChar: '"', decimal: '.'
             },
             fileName: file.name,
-            errors: results.errors || []
+            errors: results.errors || [],
+            stylesLifted: Object.keys(lifted.styles).length
           });
         },
         error: (err) => reject(err)
       });
     });
+  },
+
+  /* Verwijder __style_<prop>__<colname> kolommen uit headers,
+     lift hun waarden naar { [rowIdx]: { [realColIdx]: {prop: value} } }.
+     Onbekende style-props worden genegeerd. Niet-passende waardes idem. */
+  liftStyles(rows, headers) {
+    const styleCols = []; /* { headerIdx, prop, refColName } */
+    const realCols = [];
+    const realColMap = []; /* idx in headers -> idx in realCols, of -1 voor style-cols */
+
+    for (let i = 0; i < headers.length; i++) {
+      const h = headers[i];
+      const m = h.match(IO.STYLE_COL_PATTERN);
+      if (m && Styles.PROPS.indexOf(m[1]) !== -1) {
+        styleCols.push({ headerIdx: i, prop: m[1], refColName: m[2] });
+        realColMap.push(-1);
+      } else {
+        realColMap.push(realCols.length);
+        realCols.push(h);
+      }
+    }
+
+    if (styleCols.length === 0) {
+      /* Geen style-kolommen → onveranderd terug, styles leeg */
+      return { rows, cols: headers, styles: {} };
+    }
+
+    /* Map refColName → realCol-index */
+    for (const sc of styleCols) {
+      sc.refColIdx = realCols.indexOf(sc.refColName);
+    }
+
+    const newRows = new Array(rows.length);
+    const styles = {};
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      const newRow = new Array(realCols.length);
+      let ri = 0;
+      for (let i = 0; i < headers.length; i++) {
+        if (realColMap[i] !== -1) {
+          newRow[ri++] = row[i];
+        }
+      }
+      newRows[r] = newRow;
+
+      /* Lift style-values voor deze rij */
+      for (const sc of styleCols) {
+        if (sc.refColIdx === -1) continue;
+        const raw = row[sc.headerIdx];
+        if (raw == null || raw === '') continue;
+        let val;
+        if (sc.prop === 'bold' || sc.prop === 'italic' || sc.prop === 'underline' || sc.prop === 'strikethrough') {
+          val = (raw === 'true' || raw === '1' || raw === true);
+          if (!val) continue;
+        } else if (sc.prop === 'fontSize') {
+          val = parseInt(raw, 10);
+          if (isNaN(val) || val <= 0) continue;
+        } else {
+          val = String(raw);
+        }
+        if (!styles[r]) styles[r] = {};
+        if (!styles[r][sc.refColIdx]) styles[r][sc.refColIdx] = {};
+        styles[r][sc.refColIdx][sc.prop] = val;
+      }
+    }
+    return { rows: newRows, cols: realCols, styles };
+  },
+
+  /* Genereer extra __style_<prop>__<colname> kolommen achter de echte kolommen.
+     Alleen properties die *ergens* in de styles voorkomen worden toegevoegd. */
+  flattenStyles(rows, cols, styles) {
+    const usedProps = new Set();
+    for (const r in styles) {
+      const rowStyles = styles[r];
+      for (const c in rowStyles) {
+        for (const p in rowStyles[c]) usedProps.add(p);
+      }
+    }
+    if (usedProps.size === 0) return { rows, cols };
+
+    const styleColDefs = []; /* { prop, colIdx, colName } */
+    for (const prop of Styles.PROPS) {
+      if (!usedProps.has(prop)) continue;
+      for (let i = 0; i < cols.length; i++) {
+        styleColDefs.push({ prop, colIdx: i, colName: IO.STYLE_COL_PREFIX + prop + '__' + cols[i] });
+      }
+    }
+
+    const newCols = cols.concat(styleColDefs.map(s => s.colName));
+    const newRows = rows.map((row, rIdx) => {
+      const base = row.slice(0, cols.length);
+      const styleRow = styleColDefs.map(s => {
+        const sObj = styles[rIdx] && styles[rIdx][s.colIdx];
+        if (!sObj) return '';
+        const v = sObj[s.prop];
+        if (v === undefined || v === null) return '';
+        if (v === true) return 'true';
+        if (v === false) return '';
+        return String(v);
+      });
+      return base.concat(styleRow);
+    });
+    return { rows: newRows, cols: newCols };
   }
 };
 
@@ -1527,6 +1776,12 @@ const UI = {
       btnAlignRight:    document.getElementById('btnAlignRight'),
       btnClearStyle:    document.getElementById('btnClearStyle'),
       opmaakSummary:    document.getElementById('opmaakSummary'),
+      exportModal:      document.getElementById('exportModal'),
+      exportFilename:   document.getElementById('exportFilename'),
+      exportWithStyles: document.getElementById('exportWithStyles'),
+      exportWithBom:    document.getElementById('exportWithBom'),
+      btnExportCancel:  document.getElementById('btnExportCancel'),
+      btnExportConfirm: document.getElementById('btnExportConfirm'),
       filterPanel:      document.getElementById('filterPanel'),
       filterCol:        document.getElementById('filterCol'),
       filterOp:         document.getElementById('filterOp'),
@@ -1613,7 +1868,58 @@ const UI = {
   },
 
   wireExportButton() {
-    this.els.btnExport.addEventListener('click', () => ExportService.exportCurrent());
+    this.els.btnExport.addEventListener('click', () => this.openExportDialog());
+    this.els.btnExportCancel.addEventListener('click', () => this.closeExportDialog());
+    this.els.btnExportConfirm.addEventListener('click', () => this.confirmExport());
+    this.els.exportModal.addEventListener('click', (e) => {
+      if (e.target === this.els.exportModal) this.closeExportDialog();
+    });
+    /* Keyboard binnen modal */
+    this.els.exportModal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); this.closeExportDialog(); }
+      if (e.key === 'Enter' && e.target !== this.els.btnExportCancel) {
+        e.preventDefault(); this.confirmExport();
+      }
+    });
+  },
+
+  _lastExportWithStyles: true,
+  _lastExportWithBom: false,
+
+  openExportDialog() {
+    const src = ExportService.currentSource();
+    if (!src) {
+      this.showToast('Geen data om te exporteren', 'warn');
+      return;
+    }
+    this.els.exportFilename.value = ExportService.defaultFilename(src.mode);
+    /* Met-opmaak: alleen aanvinkbaar als source styles toelaat (niet voor SQL) */
+    const stylesAvail = src.canStyles && Object.keys(src.styles || {}).length > 0;
+    this.els.exportWithStyles.checked = stylesAvail && this._lastExportWithStyles;
+    this.els.exportWithStyles.disabled = !src.canStyles;
+    if (!stylesAvail && src.canStyles) {
+      this.els.exportWithStyles.checked = false;
+    }
+    this.els.exportWithBom.checked = this._lastExportWithBom;
+    this.els.exportModal.classList.add('open');
+    this.els.exportModal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => this.els.exportFilename.focus(), 50);
+    setTimeout(() => this.els.exportFilename.select(), 100);
+  },
+
+  closeExportDialog() {
+    this.els.exportModal.classList.remove('open');
+    this.els.exportModal.setAttribute('aria-hidden', 'true');
+  },
+
+  confirmExport() {
+    const filename = this.els.exportFilename.value.trim() || ExportService.defaultFilename('csv');
+    const withStyles = this.els.exportWithStyles.checked && !this.els.exportWithStyles.disabled;
+    const withBom = this.els.exportWithBom.checked;
+    this._lastExportWithStyles = withStyles;
+    this._lastExportWithBom = withBom;
+    ExportService.exportWithOptions({ filename, withStyles, withBom });
+    this.closeExportDialog();
   },
 
   wireFormatPanel() {
@@ -2154,11 +2460,20 @@ const UI = {
     if (depth.undo > 0 || depth.redo > 0) {
       undoStr = ` · <span class="undo-info">undo:${depth.undo}${depth.redo ? '/redo:'+depth.redo : ''}</span>`;
     }
+    /* Style-cells indicator */
+    let styleStr = '';
+    if (!SQLEngine.active) {
+      let n = 0;
+      for (const r in DataStore.styles) {
+        for (const c in DataStore.styles[r]) n++;
+      }
+      if (n > 0) styleStr = ` · <span style="color:var(--color-accent)">opmaak:${n} cel${n === 1 ? '' : 'len'}</span>`;
+    }
     let selStr = '';
     if (Selection.has() && !SQLEngine.active) {
       selStr = ` · cel <strong>${DataStore.cols[Selection.c]}</strong>@${Selection.r + 1}`;
     }
-    this.els.stats.innerHTML = `${countStr}${undoStr}${selStr}`;
+    this.els.stats.innerHTML = `${countStr}${undoStr}${styleStr}${selStr}`;
   },
 
   _toastTimer: null,

@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"
+resume: "verder met CSVHorse v0.1.5-Tinker: SQL query-builder (visuele clauses naast textarea — SELECT/WHERE/GROUP BY/ORDER BY/LIMIT met dropdowns)"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -513,3 +513,73 @@ HTML-rij met:
 
 ### Nieuwe resume-trigger (overschrijft eerdere)
 **"verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"**
+
+## v0.1.4-Trakehner (negende deelopdracht: `__style_*` CSV-roundtrip + export-dialog)
+
+**Prompt-keten:**
+1. *"debug groen: na opmaak wordt opmaak blijkbaar niet opgeslagen bij expoteren want opmaak bij importeren na export niet zichtbaar en opmaak code ook niet in csv bestand; feature: bij sql moeten logische bouwblokken met waarden via pulldown menu's"*
+2. *"ja, ga door"* — akkoord scope-shift v0.4.0 → v0.1.4 voor roundtrip; SQL builder apart als v0.1.5
+
+### Status van "bug"
+Geen bug — was expliciet uitgesloten in v0.1.2 en v0.1.3 WhatIf ("__style_*-roundtrip gepland v0.4.0-Shire"). Wel logisch dat gebruiker dit verwacht na opmaak — daarom **scope-shift**: v0.4.0 → v0.1.4.
+
+### Roadmap-update
+| Versie | Codenaam | Scope |
+|---|---|---|
+| v0.1.4 | **Trakehner** ✓ live | `__style_*` roundtrip + export-dialog |
+| v0.1.5 | Tinker (gepland) | SQL query-builder (visuele clauses) |
+| v0.4.0 | Shire (vrijkomend) | (was roundtrip) — bv. CSV-dialect-override bij export, of advanced export-features |
+
+### Toegevoegd aan `index.html`
+- **`IO.flattenStyles(rows, cols, styles)`** — voegt extra `__style_<prop>__<colname>` kolommen toe voor elke style-prop die ergens in `styles` voorkomt; lege waardes voor cellen zonder die prop
+- **`IO.liftStyles(rows, headers)`** — detecteert headers matchend op `/^__style_([a-zA-Z]+)__(.+)$/`, splitst real vs style cols, mapt waardes terug naar `{[rowIdx]:{[realColIdx]:{prop:value}}}`. Type-coercie per prop (booleans / fontSize-int / strings)
+- **`IO.STYLE_COL_PREFIX`** + **`IO.STYLE_COL_PATTERN`** als constants
+- **`DataStore.load({styles})`** — accepteert nu ook `styles` uit IO.parseFile result
+- **`ExportService.currentSource()`** — refactor: return `{rows, cols, styles, mode, canStyles}` ipv embedded mode-detect logica
+- **`ExportService.exportWithOptions({filename, withStyles, withBom})`** — vervangt oude `exportCurrent()`; doet de echte export met opt-in flags
+- **`ExportService.defaultFilename(mode)`** — losse helper voor dialog-preview
+- **Filter-mode roundtrip**: bij Filter actief mapt currentSource() styles-object om naar gefilterde rij-indexen (0..N-1) zodat export-met-opmaak correct werkt
+
+### Export-dialog modal
+- Filename input (default: gegenereerd via template, editable)
+- `[x] Met opmaak` checkbox — alleen aanvinkbaar als source canStyles=true (uit voor SQL-mode); disabled + onaangevinkt als geen styles in data
+- `[ ] UTF-8 BOM` checkbox — voor oude Excel-versies; default UIT
+- Last-used-values onthouden in `UI._lastExportWithStyles` + `UI._lastExportWithBom`
+- `Annuleer` + `Exporteer` buttons; Esc sluit; Enter buiten Annuleer = bevestig
+- Focus + select bij open op filename-input
+- Klik op overlay (buiten modal) = sluiten
+
+### Roundtrip-test (Node-simulatie)
+3-kolommen × 2-rijen dataset met 4 verschillende cellen geformatteerd (bold/color/italic/background/fontSize). Na flatten → unparse → re-parse → lift:
+- Real cols + real rows: ✓ identiek
+- Styles-object: ✓ **100% identiek** (`JSON.stringify(styles) === JSON.stringify(lifted)`)
+
+### CSV-output-structuur (voorbeeld)
+```
+naam,leeftijd,stad,__style_bold__naam,__style_bold__leeftijd,...,__style_fontSize__stad
+Anna,34,Haarlem,true,,,,,true,#ff0000,,,...,
+Bram,28,Amsterdam,,true,,...,,,,,,#00ff00,,16,
+```
+Real-kolommen eerst, dan `__style_*` achteraan. Andere CSV-tools zien gewoon extra kolommen.
+
+### Backwards-compatible
+- CSV's zonder `__style_*` kolommen: liftStyles return original + `styles: {}` (zoals v0.1.3-)
+- CSV's met `__style_*` kolommen vanaf nu: automatisch herkend, opmaak hersteld
+
+### File-statistieken na v0.1.4
+- `index.html`: **2.498 regels / 617 KB** (was 2.183 / 605 KB)
+- Eigen JS-blok: **59.541 chars** (+9KB voor IO.lift/flatten + ExportService refactor + modal-wiring + stats-extension)
+- PapaParse + AlaSQL onveranderd
+- JS-syntax: alle 3 blokken groen
+
+### Stats-counter uitbreiding
+Toont nu `opmaak:N cellen` (accent-kleur) wanneer styles aanwezig — zodat gebruiker direct ziet of opmaak in dataset zit.
+
+### Niet in v0.1.4 (latere plateaus)
+- SQL-result-export met opmaak (SQL-result heeft geen styles per definitie — `canStyles: false`)
+- Excel-format export (alleen CSV)
+- Custom export-delimiter (nu altijd hetzelfde als import)
+- SQL query-builder (komt v0.1.5-Tinker)
+
+### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.1.5-Tinker: SQL query-builder (visuele clauses naast textarea — SELECT/WHERE/GROUP BY/ORDER BY/LIMIT met dropdowns)"**

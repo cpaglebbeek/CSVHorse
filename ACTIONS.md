@@ -10,7 +10,7 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 - [x] **Vendoring AlaSQL** — v4.17.3, SHA `a53ec7d6...` vastgepind in DEPENDENCIES.md (28-05, v0.1.1-Akhal-Teke)
 - [x] **DataStore (basic)** — rows/cols/dialect/fileName model + observer-pattern (28-05, v0.0.2-Arabian; styles + Command-stack volgen later)
 - [x] **IO-laag (upload + parse + dialect-detect)** — File API + drag-drop + PapaParse.parse (28-05, v0.0.2-Arabian; export volgt v0.4.0-Shire)
-- [ ] **CSV-roundtrip styles** — `__style_*`-kolommen liften bij import, flatten bij export, dialog-toggle (default AAN) (v0.4.0-Shire)
+- [x] **CSV-roundtrip styles** — `__style_*`-kolommen liften bij import, flatten bij export, dialog-toggle (default AAN) — gerealiseerd in v0.1.4-Trakehner (zie hierboven)
 - [x] **Renderer (basis)** — HTML `<table>` met sticky thead, comfortabel tot ~5k rijen (28-05, v0.0.2-Arabian)
 - [ ] **Renderer met virtual scroll** — vaste rij-hoogte, DOM-recycling, 100k-rijen-stress-test (v0.3.0-Haflinger)
 - [x] **EditController** — cell-edit-mode (dubbelklik/Enter/F2), paste, keyboard navigatie (Arrow/Tab/Enter/Home/End), Escape=cancel (28-05, v0.0.3-Andalusian)
@@ -21,7 +21,8 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 - [ ] **AutosaveService** — throttled localStorage-snapshot + restore + schuif AAN/UIT + quota-bewaking (v0.2.0-Mustang)
 - [ ] **Zoek/vervang dialog** — regex/case-toggle/scope (alles/kolom/selectie)/volgende-vorige (v0.2.0-Mustang)
 - [ ] **Settings-modal** — dialect-keuze, autosave-toggle, export-opties, theme (toekomstig) (v0.2.0+)
-- [ ] **Export-dialog** — `Met opmaak (default AAN)` checkbox, download als CSV-blob (v0.4.0-Shire)
+- [x] **Export-dialog** — `Met opmaak (default AAN)` checkbox + filename-input + UTF-8 BOM toggle (28-05, v0.1.4-Trakehner — **scope-shift** van v0.4.0)
+- [x] **CSV-roundtrip styles** — `__style_*`-kolommen liften bij import, flatten bij export (28-05, v0.1.4-Trakehner)
 
 ### Documentatie
 
@@ -53,4 +54,5 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 - [x] **2026-05-28** — v0.1.1-Akhal-Teke opgeleverd: SQL-panel via AlaSQL 4.17.3 vendored (511KB minified, SHA a53ec7d6...). SQLEngine-module wrapt `alasql(query, [DataStore.asObjects()])`. Renderer mode-switch: 'data'-mode (DataStore + Filter) ↔ 'sql'-mode (read-only result-tabel). Toolbar `≡ SQL`-knop opent textarea-paneel met Run / Wis SQL knoppen. Ctrl/Cmd+Enter = Run; Escape = sluit. Default placeholder `SELECT * FROM data LIMIT 50`. Tabel-naam = `data`. Edit/undo/paste/Filter gedisabled in SQL-mode + toast bij dubbelklik. Filter + SQL wederzijds exclusief. Phase-badge wordt "SQL-resultaat" met gele accent. Stats-counter toont SQL-rij-en-kolom-count met bron-vermelding. Groen versiebump (+0.0.1; logische architectuur consistent).
 - [x] **2026-05-28** — B-002 (groen) opgelost: SQL "table does not exist: data". Fix: `alasql.tables.data.data = objects` registratie vóór `alasql(query)`. Patroon SQL-002 vastgelegd in BUGLIST. v0.1.1.1.
 - [x] **2026-05-28** — v0.1.2-Appaloosa opgeleverd: **basic CSV export** (scope-shift van oorspronkelijk geplande opmaak — die verschuift naar v0.1.3). ExportService.exportCurrent() detecteert mode contextueel (SQL/filtered/all), gebruikt `Papa.unparse()` met behoud van origineel dialect (komma/`;`/TAB/pipe), genereert filename `<basis>_<modus>_<YYYYMMDD_HHMM>.csv`, Blob → download. ⬇ Exporteer-knop in toolbar enabled na data-load. Toast met rij-aantal. Groen versiebump.
+- [x] **2026-05-28** — v0.1.4-Trakehner opgeleverd: **scope-shift** v0.4.0-Shire → v0.1.4. `__style_*` CSV-roundtrip via IO.flattenStyles (export) + IO.liftStyles (import). Export-dialog modal met bestandsnaam-input + "Met opmaak" checkbox (default AAN, disabled in SQL-mode) + "UTF-8 BOM" checkbox (default UIT). Last-used-values onthouden binnen sessie. Filter-mode hermapt styles naar nieuwe row-indexen. Roundtrip-test via Node-simulatie: 100% identiek styles-object voor en na export+import. Stats-counter toont `opmaak:N cellen`. Codenaam Trakehner (Duits sport, betrouwbaarheid). Groen versiebump.
 - [x] **2026-05-28** — v0.1.3-Knabstrupper opgeleverd: opmaak-toolbar per cel. Styles-module met sparse `DataStore.styles[r][c]` storage. 8 attributen: bold/italic/underline/strikethrough (toggles met active-state in toolbar) + color/background (native `<input type="color">` + wis-knop) + fontSize (dropdown 10/12/14/16/18/24 px) + align (L/C/R). SetStyleCommand + ClearStyleCommand voor undo-baar. Renderer.applyCellStyle in `renderAll` + `updateCell` via inline `style.cssText` met `Styles.cssFor()`. Opmaak-paneel mutex met Filter + SQL. Knoppen reflect huidige cell-style. Toolbar B I U Opmaak-knop active na data-load (paneel openbaar zonder selectie, controles disabled tot selectie). Gedisabled in SQL-mode (read-only). Codenaam Knabstrupper (gespikkeld paardenras). Groen versiebump.

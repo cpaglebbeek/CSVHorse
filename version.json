@@ -1,7 +1,7 @@
 {
-  "version": "0.1.3",
-  "codename": "Knabstrupper",
+  "version": "0.1.4",
+  "codename": "Trakehner",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 6: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore.styles"
+  "phase": "MVP-stap 7: __style_* CSV-roundtrip (scope-shift van v0.4.0-Shire) + export-dialog modal"
 }
