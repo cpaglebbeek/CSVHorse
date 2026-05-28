@@ -271,3 +271,35 @@ Uitgevoerd na skeleton-push. Score ~85% conform voor skeleton-fase: alle concept
 
 ### Nieuwe resume-trigger (overschrijft eerdere)
 **"verder met CSVHorse v0.1.1-Akhal-Teke: SQL-panel (AlaSQL vendored, textarea + run, multi-condition + numerieke vergelijking)"**
+
+## Bugfix B-001 — jsDelivr CDN cache serveert v0.0.2
+
+**Prompt:** *"debug: source html code zegt SVHorse v0.0.2-Arabian; bij dubbeklikken niet bewerkbaar?"*
+
+### Diagnose
+- Disk: ✓ v0.1.0-Lipizzaner
+- GitHub raw: ✓ v0.1.0-Lipizzaner
+- jsDelivr CDN: ❌ v0.0.2-Arabian (`age: 2099s`, max-age 7 dagen)
+- "Dubbelklik werkt niet" = gevolg, niet oorzaak: v0.0.2 had nog geen edit-functionaliteit
+- "SVHorse" = vermoedelijk typo (code rendert altijd `CSV<span>Horse</span>`)
+
+### RCA
+- **Functioneel:** verouderde versie geserveerd ondanks recente push
+- **Technisch:** `cdn.jsdelivr.net/gh/<repo>@main/<file>` cached tot 604.800s (7 dagen). GitHub raw cached 300s (5 min).
+- **Architectonisch:** jsDelivr@main is geen actieve-development-CDN; immutable releases zijn de happy path
+
+### Fix (geel, logische architectuur)
+1. **jsDelivr purge** via GET (niet POST): `curl https://purge.jsdelivr.net/gh/cpaglebbeek/CSVHorse@main/index.html` → status `finished` binnen 2s
+2. **GitHub Pages ingeschakeld** via `gh api -X POST /repos/.../pages -f source[branch]=main -f source[path]=/`: build duurde ~24s, status went `building` → `built`. URL: https://cpaglebbeek.github.io/CSVHorse/
+3. **Verificatie** beide URL's: nu beide v0.1.0-Lipizzaner
+
+### Documentatie-update
+- `docs/BUGLIST.md`: nieuwe sectie "Opgeloste bugs / B-001" + patroon `DEPLOY-CDN-001` in preventietabel
+- `README.md`: tabel met 3 preview-URL's (Pages preferred, jsDelivr en raw als alternatief), eindstation icthorse.nl
+- `STATUS.md`: infra-rij in wijzigingslog
+
+### Geleerd
+- jsDelivr purge gaat via **GET** niet POST
+- GitHub Pages legacy build = ~24s
+- `gh api /repos/.../pages` POST = idempotent voor enable
+- Preferred dev-preview vanaf nu: **GitHub Pages**, niet jsDelivr

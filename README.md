@@ -32,12 +32,23 @@ Standalone single-file HTML CSV viewer + editor met maximale querymogelijkheden,
 ## Gebruik
 
 ```
-1. Open CSVHorse.html in een moderne browser (Chrome/Firefox/Safari/Edge)
+1. Open index.html in een moderne browser (Chrome/Firefox/Safari/Edge)
 2. Upload een CSV-bestand of typ data in
 3. Filter via dropdown of SQL
 4. Wijzig cellen, pas opmaak toe
 5. Download bewerkte CSV
 ```
+
+### Live preview-URL's
+
+| URL | Update-snelheid | Doel |
+|-----|-----------------|------|
+| 👉 **https://cpaglebbeek.github.io/CSVHorse/** | direct na push (~1 min build) | preferred — live ontwikkeling |
+| https://cdn.jsdelivr.net/gh/cpaglebbeek/CSVHorse@main/index.html | tot 7 dagen cache | stable releases (gebruik commit-hash of versie-tag) |
+| https://raw.githubusercontent.com/cpaglebbeek/CSVHorse/main/index.html | 5 min cache | downloaden / lokaal openen |
+
+Tijdens active development: gebruik **GitHub Pages**-URL — jsDelivr cached `@main` te lang.
+Eindstation: `https://icthorse.nl/CSVHorse/` (gepland v0.5.0-Hanoverian).
 
 ## Status & Roadmap
 
