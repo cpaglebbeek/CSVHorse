@@ -27,6 +27,9 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 - [ ] **Roadmap-uitwerking** — per release expliciete scope (begin gedaan in STATUS.md, finetunen)
 - [ ] **Vendoring-protocol concreet maken** — SHA-256 hashes van gebruikte versies in DEPENDENCIES.md
 - [ ] **Voorbeeld-CSV's** — `examples/` map met `simple.csv`, `with-styles.csv`, `large-100k.csv` (gegenereerd)
+- [ ] **docs/USER_JOURNEY.md** — cell-edit state-machine + filter/sort/SQL/export-flow expliciet uitwerken (P2 uit sanitycheck 2026-05-28)
+- [ ] **docs/screens/** — visuele mockups (ASCII of SVG) van hoofdscherm, filter-dropdown geopend, SQL-panel geopend, export-dialog, settings-modal (P2 uit sanitycheck 2026-05-28)
+- [ ] **CONTENT_INVENTORY.md** — pagina-doel + key-messages + CTA voor single-page-app (P2 uit sanitycheck 2026-05-28)
 
 ### Deploy
 
@@ -41,3 +44,4 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 ## Afgerond
 
 - [x] **2026-05-28** — Repo-skeleton aangemaakt via newp protocol (verifyrules + WhatIf akkoord agpl/vanilla/friesian/akkoord)
+- [x] **2026-05-28** — ArchiMate-viewer `architectuur/CSVHorse_viewer.html` aangemaakt (8 views, 74+5 elementen, 117 relaties, Visio-look, JSON/.archimate/SVG export, deterministisch); stijl gebaseerd op WerkDB telefonie-viewer

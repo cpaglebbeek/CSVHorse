@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>CSVHorse — ArchiMate Viewer (architectuur v0.0.1-Friesian)</title>
+<style>
+  :root {
+    --c-strategy: #F5DEB3;
+    --c-business: #FFFFB5;
+    --c-application: #B5FFFF;
+    --c-technology: #C9E7B7;
+    --c-motivation: #CCCCFF;
+    --c-impl: #FFE0E0;
+    --c-other: #E8E8E8;
+    --c-stroke: #6b6b6b;
+    --c-arrow: #444;
+    --c-warning: #d9534f;
+    --c-ok: #2c8a2c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Calibri, "Segoe UI", Arial, sans-serif;
+    background: #f4f4f4;
+    color: #222;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 16px;
+    background: #fff;
+    border-bottom: 1px solid #ccc;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .toolbar h1 {
+    font-size: 15px;
+    margin: 0 18px 0 0;
+    font-weight: 600;
+    color: #333;
+  }
+  .toolbar label, .toolbar select, .toolbar button {
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .toolbar select {
+    padding: 5px 8px;
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    background: #fff;
+    min-width: 320px;
+  }
+  .toolbar button, .filebtn {
+    padding: 5px 12px;
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    background: #fafafa;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .toolbar button:hover, .filebtn:hover { background: #eef; }
+  .filebtn input { display: none; }
+  .toolbar .sep { width: 1px; height: 22px; background: #ccc; margin: 0 4px; }
+  .toolbar .right { margin-left: auto; font-size: 12px; color: #666; }
+  #stage {
+    padding: 18px;
+    overflow: auto;
+  }
+  #canvas-wrap {
+    background: #fff;
+    border: 1px solid #ddd;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    width: max-content;
+    margin: 0 auto;
+  }
+  svg#canvas { display: block; background: #fff; }
+  .log {
+    margin: 8px 16px;
+    padding: 8px 12px;
+    background: #fff8d8;
+    border-left: 4px solid #d4b300;
+    font-size: 12px;
+    font-family: "Consolas", "Monaco", monospace;
+    max-height: 100px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .log.empty { display: none; }
+  .info {
+    margin: 8px 16px 0;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #ddd;
+    font-size: 12px;
+    color: #555;
+    border-radius: 3px;
+  }
+  .info b { color: #222; }
+  .legend-block {
+    margin: 8px 16px 16px;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #ddd;
+    font-size: 12px;
+    border-radius: 3px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+  }
+  .legend-block .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-block .sw {
+    width: 18px; height: 12px;
+    border: 1px solid var(--c-stroke);
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>CSVHorse — ArchiMate viewer</h1>
+  <label>Diagram:
+    <select id="diagramSelect"></select>
+  </label>
+  <span class="sep"></span>
+  <button id="btnExportJson" title="Download .json (intern formaat)">⬇ JSON</button>
+  <button id="btnExportArchimate" title="Download .archimate (Archi-tool v5)">⬇ .archimate</button>
+  <button id="btnExportSvg" title="Download huidig diagram als .svg">⬇ SVG</button>
+  <span class="sep"></span>
+  <label class="filebtn" title="Importeer intern .json">⬆ JSON<input type="file" id="impJson" accept=".json,application/json"></label>
+  <label class="filebtn" title="Importeer Archi .archimate / .xml">⬆ .archimate<input type="file" id="impArchimate" accept=".archimate,.xml,application/xml,text/xml"></label>
+  <span class="sep"></span>
+  <button id="btnReset" title="Herstel ingebouwde model">↺ Reset</button>
+  <span class="right">v1.0 · deterministisch · standalone</span>
+</div>
+
+<div id="info" class="info"></div>
+<div id="log" class="log empty"></div>
+
+<div id="stage">
+  <div id="canvas-wrap">
+    <svg id="canvas" xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900"></svg>
+  </div>
+</div>
+
+<div class="legend-block" id="legend"></div>
+
+<script>
+/* ============================================================
+ * CSVHorse — ArchiMate viewer (standalone)
+ *
+ * - Deterministisch: zelfde model.json -> byte-identieke SVG
+ * - Import/export: .json (intern) + .archimate (Archi-tool v5)
+ * - Geen externe dependencies; werkt file:// of any webserver
+ * - Stijl: Visio-look, gebaseerd op WerkDB telefonie-viewer
+ * ============================================================ */
+
+/* --- ArchiMate type-registry: kleur per laag + simpel SVG-icoon (16x16, path in d) --- */
+const LAYER = {
+  strategy:   { color: 'var(--c-strategy)',   folder: 'strategy' },
+  business:   { color: 'var(--c-business)',   folder: 'business' },
+  application:{ color: 'var(--c-application)',folder: 'application' },
+  technology: { color: 'var(--c-technology)', folder: 'technology' },
+  motivation: { color: 'var(--c-motivation)', folder: 'motivation' },
+  impl:       { color: 'var(--c-impl)',       folder: 'implementation_migration' },
+  other:      { color: 'var(--c-other)',      folder: 'other' },
+};
+
+/* ArchiMate element-types met laag-classificatie en icoon (path data, 16x16). */
+const TYPES = {
+  /* Business */
+  BusinessActor:        { layer:'business',   icon:'M8 1.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM2 14c0-3 2.7-5 6-5s6 2 6 5v.5H2V14z' },
+  BusinessRole:         { layer:'business',   icon:'M2 4h12v8H2z M2 4l6 4 6-4' },
+  BusinessService:      { layer:'business',   icon:'M2 8a6 6 0 0 1 12 0H2z' },
+  BusinessProcess:      { layer:'business',   icon:'M1 5h9l3 3-3 3H1z' },
+  BusinessObject:       { layer:'business',   icon:'M2 3h12v10H2z' },
+  /* Application */
+  ApplicationComponent: { layer:'application',icon:'M3 3h10v10H3z M1 5h2v2H1z M1 9h2v2H1z' },
+  ApplicationService:   { layer:'application',icon:'M2 8a6 6 0 0 1 12 0H2z' },
+  ApplicationInterface: { layer:'application',icon:'M3 8a5 5 0 0 1 10 0 M3 8a5 5 0 0 0 10 0' },
+  ApplicationCollab:    { layer:'application',icon:'M5 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z M11 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z' },
+  DataObject:           { layer:'application',icon:'M2 3h12v10H2z' },
+  /* Technology */
+  Node:                 { layer:'technology', icon:'M2 5h10v8H2z M2 5l3-3h10v8l-3 3' },
+  Device:               { layer:'technology', icon:'M2 4h12v7H2z M5 13h6 M7 11h2' },
+  TechnologyService:    { layer:'technology', icon:'M2 8a6 6 0 0 1 12 0H2z' },
+  CommunicationNetwork: { layer:'technology', icon:'M2 8h12 M4 6v4 M8 6v4 M12 6v4' },
+  SystemSoftware:       { layer:'technology', icon:'M3 3h10v10H3z M3 6h10 M3 10h10' },
+  /* Implementation & Migration */
+  WorkPackage:          { layer:'impl',       icon:'M2 4h12v8H2z M2 4l12 8' },
+  Deliverable:          { layer:'impl',       icon:'M2 11a6 4 0 0 1 12 0z' },
+  Plateau:              { layer:'impl',       icon:'M2 5h12 M2 8h12 M2 11h12' },
+  Gap:                  { layer:'impl',       icon:'M3 6l5 4 5-4' },
+  /* Motivation */
+  Stakeholder:          { layer:'motivation', icon:'M8 1.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM2 14c0-3 2.7-5 6-5s6 2 6 5v.5H2V14z' },
+  Driver:               { layer:'motivation', icon:'M8 2v12 M3 9l5 5 5-5' },
+  Goal:                 { layer:'motivation', icon:'M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z M8 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6z' },
+  Requirement:          { layer:'motivation', icon:'M3 3h10v10H3z M5 8l2 2 4-4' },
+  Principle:            { layer:'motivation', icon:'M3 3h10v10H3z M3 6h10 M3 9h10' },
+  /* Annotatie */
+  Note:                 { layer:'other',      icon:'M3 3h7l3 3v7H3z M10 3v3h3' },
+};
+
+/* Relatie-types — minimal set die we tekenen en die Archi correct importeert. */
+const REL_TYPES = {
+  Flow:           { archi:'FlowRelationship',          marker:'arrow', dash:'4,2' },
+  Triggering:     { archi:'TriggeringRelationship',    marker:'arrow', dash:'' },
+  Composition:    { archi:'CompositionRelationship',   marker:'diamond-filled', dash:'' },
+  Aggregation:    { archi:'AggregationRelationship',   marker:'diamond-open',   dash:'' },
+  Assignment:     { archi:'AssignmentRelationship',    marker:'dot-line',       dash:'' },
+  Realization:    { archi:'RealizationRelationship',   marker:'triangle-open',  dash:'2,3' },
+  Serving:        { archi:'ServingRelationship',       marker:'arrow-open',     dash:'' },
+  Access:         { archi:'AccessRelationship',        marker:'arrow-open',     dash:'2,2' },
+  Influence:      { archi:'InfluenceRelationship',     marker:'arrow-open',     dash:'1,3' },
+  Association:    { archi:'AssociationRelationship',   marker:'',               dash:'' },
+};
+
+/* ============================================================
+ * Embedded model — 8 diagrammen voor CSVHorse v0.0.1-Friesian
+ * Posities en groottes vooraf vastgelegd (deterministisch).
+ * ============================================================ */
+const DEFAULT_MODEL = {
+  name: 'CSVHorse architectuur',
+  id: 'csvhorse-model-2026-05-28',
+  version: '1.0.0',
+  elements: [
+    /* --- Stakeholder + Driver + Principes (Motivation) --- */
+    { id:'e-sh',     type:'Stakeholder', name:'Gebruiker\n(individuele data-werker)' },
+    { id:'e-driver', type:'Driver',      name:'Client-only\nCSV-werkbank' },
+    { id:'e-p1', type:'Principle',   name:'P1 — Client-only\n(geen netwerk, geen accounts)' },
+    { id:'e-p2', type:'Principle',   name:'P2 — Single-file\n(één .html, geen build)' },
+    { id:'e-p3', type:'Principle',   name:'P3 — Round-trip opmaak\nvia __style_* kolommen' },
+    { id:'e-p4', type:'Principle',   name:'P4 — Privacy-by-design\n(alles in de browser)' },
+    { id:'e-p5', type:'Principle',   name:'P5 — Performance\nvanilla + virtual scroll' },
+    { id:'e-p6', type:'Principle',   name:'P6 — Reversibel\n(onbeperkte undo/redo)' },
+    { id:'e-p7', type:'Principle',   name:'P7 — Dual-mode query\n(UI-filter + SQL)' },
+    { id:'e-p8', type:'Principle',   name:'P8 — Expliciete vastlegging\n(repo = bron)' },
+    { id:'e-req-100k', type:'Requirement', name:'Schaal: 100k+ rijen' },
+    { id:'e-req-undo', type:'Requirement', name:'Onbeperkte undo\nper cel-edit' },
+    { id:'e-req-rt',   type:'Requirement', name:'Roundtrip opmaak\nin CSV-export' },
+
+    /* --- Business actors + use-cases --- */
+    { id:'e-user',       type:'BusinessActor',  name:'Gebruiker' },
+    { id:'e-uc-import',  type:'BusinessProcess',name:'Importeer CSV' },
+    { id:'e-uc-query',   type:'BusinessProcess',name:'Filter / Query' },
+    { id:'e-uc-edit',    type:'BusinessProcess',name:'Bewerk cel' },
+    { id:'e-uc-format',  type:'BusinessProcess',name:'Pas opmaak toe' },
+    { id:'e-uc-undo',    type:'BusinessProcess',name:'Undo / Redo' },
+    { id:'e-uc-save',    type:'BusinessProcess',name:'Sla op\n(autosave)' },
+    { id:'e-uc-export',  type:'BusinessProcess',name:'Exporteer CSV' },
+    { id:'e-uc-search',  type:'BusinessProcess',name:'Zoek / Vervang' },
+    { id:'e-svc-werkbank', type:'BusinessService',name:'CSV-werkbank\n(viewer + editor)' },
+
+    /* --- Application: hoofdcomponenten --- */
+    { id:'e-tb',     type:'ApplicationComponent', name:'Toolbar UI\n(Format / Filter / SQL / Search / Settings)' },
+    { id:'e-io',     type:'ApplicationComponent', name:'IO Layer\n(upload / parse / format / export)' },
+    { id:'e-store',  type:'ApplicationComponent', name:'DataStore\n(rows + cols + styles + dialect)' },
+    { id:'e-sql',    type:'ApplicationComponent', name:'SQLEngine\n(AlaSQL-binding + viewSet)' },
+    { id:'e-rend',   type:'ApplicationComponent', name:'Renderer\n(virtual scroll, DOM-recycling)' },
+    { id:'e-edit',   type:'ApplicationComponent', name:'EditController\n(cell edit + paste + keyboard nav)' },
+    { id:'e-hist',   type:'ApplicationComponent', name:'CommandHistory\n(undo/redo stack, onbeperkt)' },
+    { id:'e-auto',   type:'ApplicationComponent', name:'AutosaveService\n(throttled snapshot)' },
+
+    /* Sub-componenten van Toolbar UI */
+    { id:'e-tb-fmt',  type:'ApplicationComponent', name:'Format toolbar\n(bold/italic/kleur/...)' },
+    { id:'e-tb-filt', type:'ApplicationComponent', name:'FilterUI\n(kolom → operator → waarde)' },
+    { id:'e-tb-sql',  type:'ApplicationComponent', name:'SQL panel\n(textarea + run)' },
+    { id:'e-tb-srch', type:'ApplicationComponent', name:'Search/Replace dialog\n(regex + scope)' },
+    { id:'e-tb-set',  type:'ApplicationComponent', name:'Settings / Export dialog\n(dialect + roundtrip toggle)' },
+
+    /* Application services + data objects */
+    { id:'e-svc-parse', type:'ApplicationService', name:'CSV parse / unparse' },
+    { id:'e-svc-exec',  type:'ApplicationService', name:'SQL execute (viewSet)' },
+    { id:'e-do-rows',   type:'DataObject',         name:'rows[]' },
+    { id:'e-do-cols',   type:'DataObject',         name:'cols[]' },
+    { id:'e-do-styles', type:'DataObject',         name:'styles{}\n(rowIdx → col → StyleObj)' },
+    { id:'e-do-dialect',type:'DataObject',         name:'dialect\n(delimiter/quote/decimal)' },
+    { id:'e-do-cmds',   type:'DataObject',         name:'Command[]\n(undo/redo stack)' },
+    { id:'e-do-viewset',type:'DataObject',         name:'viewSet\n(geselecteerde rij-IDs)' },
+
+    /* --- Technology --- */
+    { id:'e-browser', type:'SystemSoftware',     name:'Modern browser\n(Chrome/Firefox/Safari/Edge)' },
+    { id:'e-dom',     type:'TechnologyService',  name:'DOM\n(SVG-table cells)' },
+    { id:'e-fileapi', type:'TechnologyService',  name:'File API\n(upload + Blob download)' },
+    { id:'e-ls',      type:'TechnologyService',  name:'localStorage\n(max ~5MB)' },
+    { id:'e-papa',    type:'SystemSoftware',     name:'PapaParse 5.4\n(vendored, MIT)' },
+    { id:'e-alasql',  type:'SystemSoftware',     name:'AlaSQL 4.x\n(vendored, MIT)' },
+
+    /* --- Implementation & Migration: plateaus + work packages + deliverables --- */
+    { id:'e-plat-001', type:'Plateau', name:'v0.0.1 Friesian\nSkeleton (huidig)' },
+    { id:'e-plat-002', type:'Plateau', name:'v0.0.2 Arabian\nCSV import + render' },
+    { id:'e-plat-003', type:'Plateau', name:'v0.0.3 Andalusian\n+ cell edit + undo' },
+    { id:'e-plat-010', type:'Plateau', name:'v0.1.0 Lipizzaner\n+ UI-filter' },
+    { id:'e-plat-011', type:'Plateau', name:'v0.1.1 Akhal-Teke\n+ SQL-panel' },
+    { id:'e-plat-012', type:'Plateau', name:'v0.1.2 Appaloosa\n+ opmaak-toolbar' },
+    { id:'e-plat-020', type:'Plateau', name:'v0.2.0 Mustang\n+ autosave + zoek/vervang' },
+    { id:'e-plat-030', type:'Plateau', name:'v0.3.0 Haflinger\n+ virtual scroll 100k+' },
+    { id:'e-plat-040', type:'Plateau', name:'v0.4.0 Shire\n+ export roundtrip' },
+    { id:'e-plat-050', type:'Plateau', name:'v0.5.0 Hanoverian\nDeploy icthorse.nl' },
+    { id:'e-plat-100', type:'Plateau', name:'v1.0.0 Lusitano\nPublic stable' },
+
+    { id:'e-wp-002', type:'WorkPackage', name:'WP — Vendor libs +\nDataStore + Renderer' },
+    { id:'e-wp-003', type:'WorkPackage', name:'WP — EditController +\nCommandHistory' },
+    { id:'e-wp-010', type:'WorkPackage', name:'WP — FilterUI compile-to-SQL' },
+    { id:'e-wp-011', type:'WorkPackage', name:'WP — SQL panel + AlaSQL bind' },
+    { id:'e-wp-012', type:'WorkPackage', name:'WP — Format toolbar +\nStyleObj model' },
+    { id:'e-wp-020', type:'WorkPackage', name:'WP — Autosave + zoek/vervang' },
+    { id:'e-wp-030', type:'WorkPackage', name:'WP — Virtual scroll +\nDOM-recycling' },
+    { id:'e-wp-040', type:'WorkPackage', name:'WP — Export dialog +\n__style_* roundtrip' },
+    { id:'e-wp-050', type:'WorkPackage', name:'WP — rsync Hostinger +\nLiteSpeed cache' },
+    { id:'e-wp-100', type:'WorkPackage', name:'WP — QA + browser-matrix +\nstable release' },
+
+    { id:'e-deliv-mvp',    type:'Deliverable', name:'Werkende MVP-app\n(import/edit/SQL/opmaak)' },
+    { id:'e-deliv-deploy', type:'Deliverable', name:'icthorse.nl/CSVHorse/' },
+    { id:'e-deliv-stable', type:'Deliverable', name:'v1.0 stable release' },
+
+    /* Annotaties */
+    { id:'n-rt',          type:'Note', name:'__style_* kolommen =\nroundtrip-mechanisme\n(default AAN bij export)' },
+    { id:'n-noframework', type:'Note', name:'Geen UI-framework —\nvanilla JS for 100k+ rows\n+ single-file bundle' },
+    { id:'n-vendored',    type:'Note', name:'PapaParse + AlaSQL\nvendored (inline JS)\nGeen CDN, geen netwerk' },
+    { id:'n-undo',        type:'Note', name:'Onbeperkte undo-stack\nper cel-edit granulariteit\n(~100KB/100k edits)' },
+    { id:'n-roundtrip',   type:'Note', name:'Export-dialog toggle:\n[x] Met opmaak (default)\n→ extra kolommen __style_*' },
+  ],
+  relationships: [
+    /* --- View 1: Conceptueel (Driver realized by 8 Principles) --- */
+    { id:'r-sh-driver',  source:'e-sh',     target:'e-driver', type:'Influence' },
+    { id:'r-driver-p1',  source:'e-driver', target:'e-p1',     type:'Realization' },
+    { id:'r-driver-p2',  source:'e-driver', target:'e-p2',     type:'Realization' },
+    { id:'r-driver-p3',  source:'e-driver', target:'e-p3',     type:'Realization' },
+    { id:'r-driver-p4',  source:'e-driver', target:'e-p4',     type:'Realization' },
+    { id:'r-driver-p5',  source:'e-driver', target:'e-p5',     type:'Realization' },
+    { id:'r-driver-p6',  source:'e-driver', target:'e-p6',     type:'Realization' },
+    { id:'r-driver-p7',  source:'e-driver', target:'e-p7',     type:'Realization' },
+    { id:'r-driver-p8',  source:'e-driver', target:'e-p8',     type:'Realization' },
+    { id:'r-req-rt-p3',  source:'e-req-rt',   target:'e-p3', type:'Realization' },
+    { id:'r-req-100k-p5',source:'e-req-100k', target:'e-p5', type:'Realization' },
+    { id:'r-req-undo-p6',source:'e-req-undo', target:'e-p6', type:'Realization' },
+
+    /* --- View 2: Component-architectuur --- */
+    { id:'r-user-tb',    source:'e-user',  target:'e-tb',    type:'Assignment' },
+    { id:'r-tb-werkbank',source:'e-tb',    target:'e-svc-werkbank', type:'Realization' },
+    { id:'r-svc-user',   source:'e-svc-werkbank', target:'e-user', type:'Serving' },
+
+    { id:'r-tb-fmt',     source:'e-tb-fmt', target:'e-tb', type:'Composition' },
+    { id:'r-tb-filt',    source:'e-tb-filt',target:'e-tb', type:'Composition' },
+    { id:'r-tb-sqlp',    source:'e-tb-sql', target:'e-tb', type:'Composition' },
+    { id:'r-tb-srch',    source:'e-tb-srch',target:'e-tb', type:'Composition' },
+    { id:'r-tb-setc',    source:'e-tb-set', target:'e-tb', type:'Composition' },
+
+    { id:'r-tb-edit',    source:'e-tb',   target:'e-edit', type:'Triggering' },
+    { id:'r-tb-sql',     source:'e-tb',   target:'e-sql',  type:'Triggering' },
+    { id:'r-tb-io',      source:'e-tb',   target:'e-io',   type:'Triggering' },
+
+    { id:'r-edit-hist',  source:'e-edit', target:'e-hist', type:'Triggering' },
+    { id:'r-edit-store', source:'e-edit', target:'e-store',type:'Access' },
+    { id:'r-hist-store', source:'e-hist', target:'e-store',type:'Access' },
+    { id:'r-sql-store',  source:'e-sql',  target:'e-store',type:'Access' },
+    { id:'r-sql-rend',   source:'e-sql',  target:'e-rend', type:'Flow', name:'viewSet' },
+    { id:'r-store-rend', source:'e-store',target:'e-rend', type:'Access', name:'data' },
+    { id:'r-store-auto', source:'e-store',target:'e-auto', type:'Triggering', name:'change' },
+    { id:'r-io-store',   source:'e-io',   target:'e-store',type:'Access' },
+
+    { id:'r-io-papa',    source:'e-io',   target:'e-papa', type:'Realization' },
+    { id:'r-sql-alasql', source:'e-sql',  target:'e-alasql',type:'Realization' },
+    { id:'r-auto-ls',    source:'e-auto', target:'e-ls',   type:'Access' },
+    { id:'r-rend-dom',   source:'e-rend', target:'e-dom',  type:'Realization' },
+    { id:'r-io-fileapi', source:'e-io',   target:'e-fileapi',type:'Realization' },
+
+    /* DataStore composition van data-objects */
+    { id:'r-rows-store',   source:'e-do-rows',   target:'e-store', type:'Composition' },
+    { id:'r-cols-store',   source:'e-do-cols',   target:'e-store', type:'Composition' },
+    { id:'r-styles-store', source:'e-do-styles', target:'e-store', type:'Composition' },
+    { id:'r-dialect-store',source:'e-do-dialect',target:'e-store', type:'Composition' },
+    { id:'r-cmds-hist',    source:'e-do-cmds',   target:'e-hist',  type:'Composition' },
+    { id:'r-viewset-sql',  source:'e-do-viewset',target:'e-sql',   type:'Composition' },
+
+    /* --- View 3: Data-flow CSV import --- */
+    { id:'r-user-uc-imp',  source:'e-user',     target:'e-uc-import', type:'Assignment' },
+    { id:'r-uc-imp-io',    source:'e-uc-import',target:'e-io',        type:'Serving' },
+    { id:'r-io-fileapi-r', source:'e-io',       target:'e-fileapi',   type:'Access', name:'read file' },
+    { id:'r-io-papa-call', source:'e-io',       target:'e-svc-parse', type:'Triggering', name:'parse(CSV)' },
+    { id:'r-svc-parse-papa', source:'e-svc-parse', target:'e-papa',   type:'Realization' },
+    { id:'r-papa-io',      source:'e-papa',     target:'e-io',        type:'Flow', name:'parsed rows' },
+    { id:'r-io-rows',      source:'e-io',       target:'e-do-rows',   type:'Flow', name:'load rows' },
+    { id:'r-io-cols',      source:'e-io',       target:'e-do-cols',   type:'Flow', name:'load cols' },
+    { id:'r-io-dialect',   source:'e-io',       target:'e-do-dialect',type:'Flow', name:'detect dialect' },
+    { id:'r-io-styles',    source:'e-io',       target:'e-do-styles', type:'Flow', name:'lift __style_*' },
+    { id:'r-store-rend-3', source:'e-store',    target:'e-rend',      type:'Flow', name:'invalidate + render' },
+
+    /* --- View 4: SQL query / UI-filter --- */
+    { id:'r-user-uc-q',    source:'e-user',     target:'e-uc-query',  type:'Assignment' },
+    { id:'r-ucq-filt',     source:'e-uc-query', target:'e-tb-filt',   type:'Serving', name:'visueel filter' },
+    { id:'r-ucq-sqlp',     source:'e-uc-query', target:'e-tb-sql',    type:'Serving', name:'SQL textarea' },
+    { id:'r-filt-sql',     source:'e-tb-filt',  target:'e-sql',       type:'Flow', name:'compile to SQL' },
+    { id:'r-sqlp-sql',     source:'e-tb-sql',   target:'e-sql',       type:'Triggering', name:'exec(query)' },
+    { id:'r-sql-exec',     source:'e-sql',      target:'e-svc-exec',  type:'Realization' },
+    { id:'r-exec-alasql',  source:'e-svc-exec', target:'e-alasql',    type:'Realization' },
+    { id:'r-sql-store-4',  source:'e-sql',      target:'e-store',     type:'Access', name:'lees rows' },
+    { id:'r-sql-vs',       source:'e-sql',      target:'e-do-viewset',type:'Flow', name:'produceer viewSet' },
+    { id:'r-vs-rend',      source:'e-do-viewset',target:'e-rend',     type:'Flow', name:'render subset' },
+
+    /* --- View 5: Cell edit + undo/redo --- */
+    { id:'r-user-uc-edit', source:'e-user',     target:'e-uc-edit',   type:'Assignment' },
+    { id:'r-uc-edit-edit', source:'e-uc-edit',  target:'e-edit',      type:'Serving' },
+    { id:'r-edit-cmd',     source:'e-edit',     target:'e-do-cmds',   type:'Flow', name:'push Command' },
+    { id:'r-cmds-hist-5',  source:'e-do-cmds',  target:'e-hist',      type:'Composition' },
+    { id:'r-hist-store-5', source:'e-hist',     target:'e-store',     type:'Access', name:'apply' },
+    { id:'r-store-rend-5', source:'e-store',    target:'e-rend',      type:'Triggering', name:'invalidate cell' },
+    { id:'r-store-auto-5', source:'e-store',    target:'e-auto',      type:'Triggering' },
+    { id:'r-user-uc-undo', source:'e-user',     target:'e-uc-undo',   type:'Assignment' },
+    { id:'r-uc-undo-hist', source:'e-uc-undo',  target:'e-hist',      type:'Serving', name:'Ctrl+Z' },
+    { id:'r-hist-revert',  source:'e-hist',     target:'e-store',     type:'Access', name:'revert' },
+
+    /* --- View 6: Opmaak + autosave --- */
+    { id:'r-user-uc-fmt',  source:'e-user',     target:'e-uc-format', type:'Assignment' },
+    { id:'r-uc-fmt-tb',    source:'e-uc-format',target:'e-tb-fmt',    type:'Serving' },
+    { id:'r-tbfmt-edit',   source:'e-tb-fmt',   target:'e-edit',      type:'Triggering', name:'style cmd' },
+    { id:'r-edit-styles',  source:'e-edit',     target:'e-do-styles', type:'Access', name:'set style' },
+    { id:'r-styles-rend',  source:'e-do-styles',target:'e-rend',      type:'Access', name:'apply CSS' },
+    { id:'r-user-uc-save', source:'e-user',     target:'e-uc-save',   type:'Assignment' },
+    { id:'r-uc-save-auto', source:'e-uc-save',  target:'e-auto',      type:'Serving' },
+    { id:'r-auto-ls-6',    source:'e-auto',     target:'e-ls',        type:'Access', name:'throttled snapshot' },
+
+    /* --- View 7: Export roundtrip --- */
+    { id:'r-user-uc-exp',  source:'e-user',     target:'e-uc-export', type:'Assignment' },
+    { id:'r-uc-exp-tb',    source:'e-uc-export',target:'e-tb-set',    type:'Serving' },
+    { id:'r-tbset-io',     source:'e-tb-set',   target:'e-io',        type:'Triggering', name:'export(with-styles)' },
+    { id:'r-io-store-7',   source:'e-io',       target:'e-store',     type:'Access', name:'read rows + styles' },
+    { id:'r-io-flatten',   source:'e-io',       target:'e-do-styles', type:'Access', name:'flatten __style_*' },
+    { id:'r-io-papa-7',    source:'e-io',       target:'e-papa',      type:'Triggering', name:'unparse' },
+    { id:'r-papa-blob',    source:'e-papa',     target:'e-fileapi',   type:'Flow', name:'CSV blob' },
+    { id:'r-blob-user',    source:'e-fileapi',  target:'e-user',      type:'Flow', name:'download' },
+
+    /* --- View 8: Roadmap plateaus --- */
+    { id:'r-pl1-wp2',  source:'e-plat-001', target:'e-wp-002',  type:'Triggering' },
+    { id:'r-wp2-pl2',  source:'e-wp-002',   target:'e-plat-002',type:'Realization' },
+    { id:'r-pl2-wp3',  source:'e-plat-002', target:'e-wp-003',  type:'Triggering' },
+    { id:'r-wp3-pl3',  source:'e-wp-003',   target:'e-plat-003',type:'Realization' },
+    { id:'r-pl3-wp10', source:'e-plat-003', target:'e-wp-010',  type:'Triggering' },
+    { id:'r-wp10-pl10',source:'e-wp-010',   target:'e-plat-010',type:'Realization' },
+    { id:'r-pl10-wp11',source:'e-plat-010', target:'e-wp-011',  type:'Triggering' },
+    { id:'r-wp11-pl11',source:'e-wp-011',   target:'e-plat-011',type:'Realization' },
+    { id:'r-pl11-wp12',source:'e-plat-011', target:'e-wp-012',  type:'Triggering' },
+    { id:'r-wp12-pl12',source:'e-wp-012',   target:'e-plat-012',type:'Realization' },
+    { id:'r-pl12-wp20',source:'e-plat-012', target:'e-wp-020',  type:'Triggering' },
+    { id:'r-wp20-pl20',source:'e-wp-020',   target:'e-plat-020',type:'Realization' },
+    { id:'r-pl20-wp30',source:'e-plat-020', target:'e-wp-030',  type:'Triggering' },
+    { id:'r-wp30-pl30',source:'e-wp-030',   target:'e-plat-030',type:'Realization' },
+    { id:'r-pl30-wp40',source:'e-plat-030', target:'e-wp-040',  type:'Triggering' },
+    { id:'r-wp40-pl40',source:'e-wp-040',   target:'e-plat-040',type:'Realization' },
+    { id:'r-pl40-wp50',source:'e-plat-040', target:'e-wp-050',  type:'Triggering' },
+    { id:'r-wp50-pl50',source:'e-wp-050',   target:'e-plat-050',type:'Realization' },
+    { id:'r-pl50-wp100',source:'e-plat-050',target:'e-wp-100',  type:'Triggering' },
+    { id:'r-wp100-pl100',source:'e-wp-100', target:'e-plat-100',type:'Realization' },
+    { id:'r-mvp-pl20',  source:'e-deliv-mvp',   target:'e-plat-020',type:'Realization' },
+    { id:'r-dep-pl50',  source:'e-deliv-deploy',target:'e-plat-050',type:'Realization' },
+    { id:'r-stab-pl100',source:'e-deliv-stable',target:'e-plat-100',type:'Realization' },
+
+    /* Annotatie-associaties */
+    { id:'r-n-rt-p3',     source:'n-rt',           target:'e-p3',    type:'Association' },
+    { id:'r-n-noframe-p5',source:'n-noframework',  target:'e-p5',    type:'Association' },
+    { id:'r-n-vend-papa', source:'n-vendored',     target:'e-papa',  type:'Association' },
+    { id:'r-n-undo-p6',   source:'n-undo',         target:'e-p6',    type:'Association' },
+    { id:'r-n-rt7',       source:'n-roundtrip',    target:'e-io',    type:'Association' },
+  ],
+  views: [
+    /* ============ View 1: Conceptueel (Motivation) ============ */
+    {
+      id:'v-1-conceptueel',
+      name:'1. Conceptueel — Stakeholder · Driver · 8 Principes',
+      width:1600, height:760,
+      title:'Conceptueel — Client-only CSV-werkbank gerealiseerd door 8 principes',
+      objects:[
+        { id:'do-1-sh',     element:'e-sh',     x: 60, y:320, w:200, h:110 },
+        { id:'do-1-driver', element:'e-driver', x:340, y:320, w:240, h:110 },
+        { id:'do-1-p1', element:'e-p1', x: 660, y: 80, w:280, h:80 },
+        { id:'do-1-p2', element:'e-p2', x: 960, y: 80, w:280, h:80 },
+        { id:'do-1-p3', element:'e-p3', x:1260, y: 80, w:280, h:80 },
+        { id:'do-1-p4', element:'e-p4', x: 660, y:180, w:280, h:80 },
+        { id:'do-1-p5', element:'e-p5', x: 960, y:180, w:280, h:80 },
+        { id:'do-1-p6', element:'e-p6', x:1260, y:180, w:280, h:80 },
+        { id:'do-1-p7', element:'e-p7', x: 660, y:280, w:280, h:80 },
+        { id:'do-1-p8', element:'e-p8', x: 960, y:280, w:280, h:80 },
+        { id:'do-1-req-100k',element:'e-req-100k',x: 660, y:480, w:240, h:80 },
+        { id:'do-1-req-undo',element:'e-req-undo',x: 940, y:480, w:240, h:80 },
+        { id:'do-1-req-rt',  element:'e-req-rt',  x:1220, y:480, w:280, h:80 },
+        { id:'do-1-n-undo',  element:'n-undo',    x: 60, y:600, w:380, h:120 },
+        { id:'do-1-n-rt',    element:'n-rt',      x:460, y:600, w:380, h:120 },
+        { id:'do-1-n-nf',    element:'n-noframework', x:860, y:600, w:360, h:120 },
+        { id:'do-1-n-vend',  element:'n-vendored',    x:1240, y:600, w:300, h:120 },
+      ],
+      connections:[
+        { id:'c-1-shd', source:'do-1-sh',     target:'do-1-driver', relationship:'r-sh-driver' },
+        { id:'c-1-d1', source:'do-1-driver', target:'do-1-p1', relationship:'r-driver-p1' },
+        { id:'c-1-d2', source:'do-1-driver', target:'do-1-p2', relationship:'r-driver-p2' },
+        { id:'c-1-d3', source:'do-1-driver', target:'do-1-p3', relationship:'r-driver-p3' },
+        { id:'c-1-d4', source:'do-1-driver', target:'do-1-p4', relationship:'r-driver-p4' },
+        { id:'c-1-d5', source:'do-1-driver', target:'do-1-p5', relationship:'r-driver-p5' },
+        { id:'c-1-d6', source:'do-1-driver', target:'do-1-p6', relationship:'r-driver-p6' },
+        { id:'c-1-d7', source:'do-1-driver', target:'do-1-p7', relationship:'r-driver-p7' },
+        { id:'c-1-d8', source:'do-1-driver', target:'do-1-p8', relationship:'r-driver-p8' },
+        { id:'c-1-rt-p3',   source:'do-1-req-rt',   target:'do-1-p3', relationship:'r-req-rt-p3' },
+        { id:'c-1-100k-p5', source:'do-1-req-100k', target:'do-1-p5', relationship:'r-req-100k-p5' },
+        { id:'c-1-undo-p6', source:'do-1-req-undo', target:'do-1-p6', relationship:'r-req-undo-p6' },
+        { id:'c-1-n-undo',  source:'do-1-n-undo',   target:'do-1-p6', relationship:'r-n-undo-p6' },
+        { id:'c-1-n-rt',    source:'do-1-n-rt',     target:'do-1-p3', relationship:'r-n-rt-p3' },
+        { id:'c-1-n-nf',    source:'do-1-n-nf',     target:'do-1-p5', relationship:'r-n-noframe-p5' },
+      ],
+    },
+
+    /* ============ View 2: Component-architectuur (Application + Tech) ============ */
+    {
+      id:'v-2-componenten',
+      name:'2. Component-architectuur — Application + Technology lagen',
+      width:1600, height:980,
+      title:'Component-architectuur — Toolbar UI · 7 application components · 6 technology services',
+      objects:[
+        /* Business actor + service */
+        { id:'do-2-user', element:'e-user',          x: 40, y: 80, w:200, h:90 },
+        { id:'do-2-svc',  element:'e-svc-werkbank',  x:1340, y: 80, w:240, h:90 },
+
+        /* Toolbar UI parent + 5 sub-components */
+        { id:'do-2-tb',     element:'e-tb',       x:300, y: 80, w:1000, h:80 },
+        { id:'do-2-tb-fmt', element:'e-tb-fmt',   x:300, y:180, w:188, h:70 },
+        { id:'do-2-tb-flt', element:'e-tb-filt',  x:500, y:180, w:188, h:70 },
+        { id:'do-2-tb-sql', element:'e-tb-sql',   x:700, y:180, w:188, h:70 },
+        { id:'do-2-tb-srh', element:'e-tb-srch',  x:900, y:180, w:188, h:70 },
+        { id:'do-2-tb-set', element:'e-tb-set',   x:1100,y:180, w:200, h:70 },
+
+        /* Core application components row */
+        { id:'do-2-edit', element:'e-edit', x: 60, y:290, w:240, h:100 },
+        { id:'do-2-io',   element:'e-io',   x:340, y:290, w:240, h:100 },
+        { id:'do-2-sql',  element:'e-sql',  x:620, y:290, w:240, h:100 },
+        { id:'do-2-hist', element:'e-hist', x:900, y:290, w:240, h:100 },
+        { id:'do-2-auto', element:'e-auto', x:1180,y:290, w:240, h:100 },
+
+        /* Central DataStore */
+        { id:'do-2-store', element:'e-store', x: 60, y:440, w:1380, h:120 },
+        { id:'do-2-rows',    element:'e-do-rows',    x: 80, y:475, w:140, h:60 },
+        { id:'do-2-cols',    element:'e-do-cols',    x:240, y:475, w:140, h:60 },
+        { id:'do-2-styles',  element:'e-do-styles',  x:400, y:475, w:220, h:60 },
+        { id:'do-2-dialect', element:'e-do-dialect', x:640, y:475, w:220, h:60 },
+        { id:'do-2-cmds',    element:'e-do-cmds',    x:900, y:475, w:200, h:60 },
+        { id:'do-2-viewset', element:'e-do-viewset', x:1120,y:475, w:200, h:60 },
+
+        /* Renderer row */
+        { id:'do-2-rend', element:'e-rend', x:620, y:610, w:240, h:100 },
+
+        /* Technology services row */
+        { id:'do-2-papa',    element:'e-papa',    x: 60, y:760, w:240, h:90 },
+        { id:'do-2-fileapi', element:'e-fileapi', x:340, y:760, w:240, h:90 },
+        { id:'do-2-alasql',  element:'e-alasql',  x:620, y:760, w:240, h:90 },
+        { id:'do-2-ls',      element:'e-ls',      x:900, y:760, w:240, h:90 },
+        { id:'do-2-dom',     element:'e-dom',     x:1180,y:760, w:240, h:90 },
+      ],
+      connections:[
+        { id:'c-2-usr-tb',   source:'do-2-user',  target:'do-2-tb',    relationship:'r-user-tb' },
+        { id:'c-2-tb-svc',   source:'do-2-tb',    target:'do-2-svc',   relationship:'r-tb-werkbank' },
+        { id:'c-2-svc-usr',  source:'do-2-svc',   target:'do-2-user',  relationship:'r-svc-user' },
+
+        { id:'c-2-fmt',  source:'do-2-tb-fmt', target:'do-2-tb', relationship:'r-tb-fmt' },
+        { id:'c-2-flt',  source:'do-2-tb-flt', target:'do-2-tb', relationship:'r-tb-filt' },
+        { id:'c-2-sqlp', source:'do-2-tb-sql', target:'do-2-tb', relationship:'r-tb-sqlp' },
+        { id:'c-2-srh',  source:'do-2-tb-srh', target:'do-2-tb', relationship:'r-tb-srch' },
+        { id:'c-2-setc', source:'do-2-tb-set', target:'do-2-tb', relationship:'r-tb-setc' },
+
+        { id:'c-2-tb-edit', source:'do-2-tb', target:'do-2-edit', relationship:'r-tb-edit' },
+        { id:'c-2-tb-sql',  source:'do-2-tb', target:'do-2-sql',  relationship:'r-tb-sql'  },
+        { id:'c-2-tb-io',   source:'do-2-tb', target:'do-2-io',   relationship:'r-tb-io'   },
+
+        { id:'c-2-edit-hist',  source:'do-2-edit',  target:'do-2-hist',  relationship:'r-edit-hist'  },
+        { id:'c-2-edit-store', source:'do-2-edit',  target:'do-2-store', relationship:'r-edit-store' },
+        { id:'c-2-hist-store', source:'do-2-hist',  target:'do-2-store', relationship:'r-hist-store' },
+        { id:'c-2-sql-store',  source:'do-2-sql',   target:'do-2-store', relationship:'r-sql-store'  },
+        { id:'c-2-io-store',   source:'do-2-io',    target:'do-2-store', relationship:'r-io-store'   },
+        { id:'c-2-sto-rend',   source:'do-2-store', target:'do-2-rend',  relationship:'r-store-rend' },
+        { id:'c-2-sql-rend',   source:'do-2-sql',   target:'do-2-rend',  relationship:'r-sql-rend'   },
+        { id:'c-2-sto-auto',   source:'do-2-store', target:'do-2-auto',  relationship:'r-store-auto' },
+
+        { id:'c-2-io-papa',    source:'do-2-io',    target:'do-2-papa',    relationship:'r-io-papa'   },
+        { id:'c-2-sql-alasql', source:'do-2-sql',   target:'do-2-alasql',  relationship:'r-sql-alasql'},
+        { id:'c-2-auto-ls',    source:'do-2-auto',  target:'do-2-ls',      relationship:'r-auto-ls'   },
+        { id:'c-2-rend-dom',   source:'do-2-rend',  target:'do-2-dom',     relationship:'r-rend-dom'  },
+        { id:'c-2-io-fa',      source:'do-2-io',    target:'do-2-fileapi', relationship:'r-io-fileapi'},
+
+        { id:'c-2-rows',  source:'do-2-rows',   target:'do-2-store', relationship:'r-rows-store'   },
+        { id:'c-2-cols',  source:'do-2-cols',   target:'do-2-store', relationship:'r-cols-store'   },
+        { id:'c-2-sty',   source:'do-2-styles', target:'do-2-store', relationship:'r-styles-store' },
+        { id:'c-2-dia',   source:'do-2-dialect',target:'do-2-store', relationship:'r-dialect-store'},
+        { id:'c-2-cmd',   source:'do-2-cmds',   target:'do-2-hist',  relationship:'r-cmds-hist'    },
+        { id:'c-2-vs',    source:'do-2-viewset',target:'do-2-sql',   relationship:'r-viewset-sql'  },
+      ],
+    },
+
+    /* ============ View 3: Data-flow CSV import + style-lift ============ */
+    {
+      id:'v-3-import',
+      name:'3. Data-flow — CSV import + style-lift',
+      width:1600, height:760,
+      title:'Data-flow — Gebruiker importeert CSV; __style_*-kolommen worden gelift naar DataStore.styles',
+      objects:[
+        { id:'do-3-user', element:'e-user',     x: 60, y: 90, w:200, h:80 },
+        { id:'do-3-uc',   element:'e-uc-import',x:320, y: 90, w:200, h:80 },
+        { id:'do-3-io',   element:'e-io',       x:580, y: 90, w:240, h:90 },
+        { id:'do-3-fa',   element:'e-fileapi',  x:880, y: 90, w:220, h:90 },
+        { id:'do-3-parse',element:'e-svc-parse',x:1160,y: 90, w:200, h:90 },
+        { id:'do-3-papa', element:'e-papa',     x:1400,y: 90, w:180, h:90 },
+
+        { id:'do-3-rows',   element:'e-do-rows',    x:380, y:300, w:180, h:70 },
+        { id:'do-3-cols',   element:'e-do-cols',    x:580, y:300, w:180, h:70 },
+        { id:'do-3-dialect',element:'e-do-dialect', x:780, y:300, w:200, h:70 },
+        { id:'do-3-styles', element:'e-do-styles',  x:1000,y:300, w:240, h:70 },
+
+        { id:'do-3-store', element:'e-store', x:380, y:420, w:880, h:90 },
+
+        { id:'do-3-rend', element:'e-rend', x:780, y:560, w:240, h:100 },
+        { id:'do-3-dom',  element:'e-dom',  x:780, y:690, w:240, h:80 },
+
+        { id:'do-3-n', element:'n-roundtrip', x: 40, y:430, w:300, h:130 },
+      ],
+      connections:[
+        { id:'c-3-u-uc', source:'do-3-user', target:'do-3-uc',   relationship:'r-user-uc-imp' },
+        { id:'c-3-uc-io',source:'do-3-uc',   target:'do-3-io',   relationship:'r-uc-imp-io' },
+        { id:'c-3-io-fa',source:'do-3-io',   target:'do-3-fa',   relationship:'r-io-fileapi-r' },
+        { id:'c-3-io-pa',source:'do-3-io',   target:'do-3-parse',relationship:'r-io-papa-call' },
+        { id:'c-3-pa-papa', source:'do-3-parse', target:'do-3-papa', relationship:'r-svc-parse-papa' },
+        { id:'c-3-papa-io', source:'do-3-papa', target:'do-3-io', relationship:'r-papa-io' },
+        { id:'c-3-io-rows', source:'do-3-io', target:'do-3-rows',    relationship:'r-io-rows' },
+        { id:'c-3-io-cols', source:'do-3-io', target:'do-3-cols',    relationship:'r-io-cols' },
+        { id:'c-3-io-dia',  source:'do-3-io', target:'do-3-dialect', relationship:'r-io-dialect' },
+        { id:'c-3-io-sty',  source:'do-3-io', target:'do-3-styles',  relationship:'r-io-styles' },
+        { id:'c-3-store-rend', source:'do-3-store', target:'do-3-rend', relationship:'r-store-rend-3' },
+        { id:'c-3-rend-dom',   source:'do-3-rend',  target:'do-3-dom',  relationship:'r-rend-dom' },
+        { id:'c-3-n', source:'do-3-n', target:'do-3-io', relationship:'r-n-rt7' },
+      ],
+    },
+
+    /* ============ View 4: SQL query / UI-filter ============ */
+    {
+      id:'v-4-query',
+      name:'4. Data-flow — SQL query / UI-filter → viewSet',
+      width:1600, height:720,
+      title:'Data-flow — UI-filter compileert naar SQL; SQLEngine produceert viewSet voor Renderer',
+      objects:[
+        { id:'do-4-user', element:'e-user',    x: 60, y: 90, w:200, h:80 },
+        { id:'do-4-uc',   element:'e-uc-query',x:320, y: 90, w:220, h:80 },
+
+        { id:'do-4-filt', element:'e-tb-filt', x: 60, y:240, w:240, h:90 },
+        { id:'do-4-sqlp', element:'e-tb-sql',  x:340, y:240, w:240, h:90 },
+
+        { id:'do-4-sql',  element:'e-sql',     x:700, y:240, w:240, h:90 },
+        { id:'do-4-exec', element:'e-svc-exec',x:1000,y:240, w:220, h:90 },
+        { id:'do-4-ala',  element:'e-alasql',  x:1260,y:240, w:240, h:90 },
+
+        { id:'do-4-store',element:'e-store',   x: 700, y:380, w:540, h:80 },
+        { id:'do-4-vs',   element:'e-do-viewset',x: 980, y:500, w:240, h:70 },
+
+        { id:'do-4-rend', element:'e-rend',    x: 700, y:610, w:240, h:90 },
+      ],
+      connections:[
+        { id:'c-4-u-uc',    source:'do-4-user', target:'do-4-uc',   relationship:'r-user-uc-q' },
+        { id:'c-4-uc-filt', source:'do-4-uc',   target:'do-4-filt', relationship:'r-ucq-filt' },
+        { id:'c-4-uc-sqlp', source:'do-4-uc',   target:'do-4-sqlp', relationship:'r-ucq-sqlp' },
+        { id:'c-4-filt-sql',source:'do-4-filt', target:'do-4-sql',  relationship:'r-filt-sql' },
+        { id:'c-4-sqlp-sql',source:'do-4-sqlp', target:'do-4-sql',  relationship:'r-sqlp-sql' },
+        { id:'c-4-sql-exec',source:'do-4-sql',  target:'do-4-exec', relationship:'r-sql-exec' },
+        { id:'c-4-exec-ala',source:'do-4-exec', target:'do-4-ala',  relationship:'r-exec-alasql' },
+        { id:'c-4-sql-store',source:'do-4-sql', target:'do-4-store',relationship:'r-sql-store-4' },
+        { id:'c-4-sql-vs',  source:'do-4-sql',  target:'do-4-vs',   relationship:'r-sql-vs' },
+        { id:'c-4-vs-rend', source:'do-4-vs',   target:'do-4-rend', relationship:'r-vs-rend' },
+      ],
+    },
+
+    /* ============ View 5: Cell edit + undo/redo ============ */
+    {
+      id:'v-5-edit-undo',
+      name:'5. Data-flow — Cell edit + undo/redo (Command stack)',
+      width:1600, height:760,
+      title:'Data-flow — EditController duwt Commands op stack; Ctrl+Z reverteert via CommandHistory',
+      objects:[
+        { id:'do-5-user', element:'e-user',     x: 60, y:120, w:200, h:80 },
+        { id:'do-5-uc',   element:'e-uc-edit',  x:320, y:120, w:200, h:80 },
+        { id:'do-5-edit', element:'e-edit',     x:580, y:120, w:240, h:100 },
+        { id:'do-5-cmds', element:'e-do-cmds',  x:880, y:120, w:240, h:80 },
+        { id:'do-5-hist', element:'e-hist',     x:1180,y:120, w:240, h:100 },
+
+        { id:'do-5-store',element:'e-store',    x: 60, y:330, w:1380, h:90 },
+
+        { id:'do-5-auto', element:'e-auto',     x: 60, y:480, w:240, h:90 },
+        { id:'do-5-ls',   element:'e-ls',       x:340, y:480, w:240, h:90 },
+        { id:'do-5-rend', element:'e-rend',     x:1180,y:480, w:240, h:90 },
+        { id:'do-5-dom',  element:'e-dom',      x:1180,y:610, w:240, h:80 },
+
+        { id:'do-5-uc-undo', element:'e-uc-undo', x: 60, y:610, w:240, h:80 },
+        { id:'do-5-n',       element:'n-undo',    x:340, y:610, w:380, h:120 },
+      ],
+      connections:[
+        { id:'c-5-u-uc',     source:'do-5-user', target:'do-5-uc',   relationship:'r-user-uc-edit' },
+        { id:'c-5-uc-edit',  source:'do-5-uc',   target:'do-5-edit', relationship:'r-uc-edit-edit' },
+        { id:'c-5-edit-cmd', source:'do-5-edit', target:'do-5-cmds', relationship:'r-edit-cmd' },
+        { id:'c-5-cmd-hist', source:'do-5-cmds', target:'do-5-hist', relationship:'r-cmds-hist-5' },
+        { id:'c-5-hist-store',source:'do-5-hist',target:'do-5-store',relationship:'r-hist-store-5' },
+        { id:'c-5-store-rend',source:'do-5-store',target:'do-5-rend',relationship:'r-store-rend-5' },
+        { id:'c-5-rend-dom', source:'do-5-rend', target:'do-5-dom',  relationship:'r-rend-dom' },
+        { id:'c-5-store-auto',source:'do-5-store',target:'do-5-auto',relationship:'r-store-auto-5' },
+        { id:'c-5-auto-ls',  source:'do-5-auto', target:'do-5-ls',   relationship:'r-auto-ls' },
+        { id:'c-5-u-undo',   source:'do-5-user',   target:'do-5-uc-undo', relationship:'r-user-uc-undo' },
+        { id:'c-5-undo-hist',source:'do-5-uc-undo',target:'do-5-hist',    relationship:'r-uc-undo-hist' },
+        { id:'c-5-revert',   source:'do-5-hist',target:'do-5-store',     relationship:'r-hist-revert' },
+        { id:'c-5-n',        source:'do-5-n',   target:'do-5-hist',     relationship:'r-n-undo-p6' },
+      ],
+    },
+
+    /* ============ View 6: Opmaak + autosave ============ */
+    {
+      id:'v-6-format-save',
+      name:'6. Data-flow — Opmaak toepassen + autosave naar localStorage',
+      width:1600, height:720,
+      title:'Data-flow — Format toolbar muteert styles; AutosaveService snapshot naar localStorage',
+      objects:[
+        { id:'do-6-user', element:'e-user',     x: 60, y:120, w:200, h:80 },
+        { id:'do-6-uc-f', element:'e-uc-format',x:320, y:120, w:220, h:80 },
+        { id:'do-6-tbf',  element:'e-tb-fmt',   x:580, y:120, w:240, h:90 },
+        { id:'do-6-edit', element:'e-edit',     x:880, y:120, w:240, h:100 },
+
+        { id:'do-6-styles', element:'e-do-styles', x:1180, y:120, w:280, h:90 },
+
+        { id:'do-6-store',  element:'e-store', x: 60, y:330, w:1400, h:90 },
+
+        { id:'do-6-rend',   element:'e-rend',  x:1180, y:480, w:280, h:90 },
+
+        { id:'do-6-uc-s',   element:'e-uc-save',x: 60, y:480, w:200, h:80 },
+        { id:'do-6-auto',   element:'e-auto',   x:320, y:480, w:240, h:90 },
+        { id:'do-6-ls',     element:'e-ls',     x:620, y:480, w:240, h:90 },
+        { id:'do-6-n',      element:'n-noframework', x:920, y:480, w:220, h:130 },
+      ],
+      connections:[
+        { id:'c-6-u-uc',    source:'do-6-user',target:'do-6-uc-f',relationship:'r-user-uc-fmt' },
+        { id:'c-6-uc-tbf',  source:'do-6-uc-f',target:'do-6-tbf', relationship:'r-uc-fmt-tb' },
+        { id:'c-6-tbf-edit',source:'do-6-tbf', target:'do-6-edit',relationship:'r-tbfmt-edit' },
+        { id:'c-6-edit-sty',source:'do-6-edit',target:'do-6-styles', relationship:'r-edit-styles' },
+        { id:'c-6-sty-rend',source:'do-6-styles',target:'do-6-rend',relationship:'r-styles-rend' },
+        { id:'c-6-u-save',  source:'do-6-user',target:'do-6-uc-s',  relationship:'r-user-uc-save' },
+        { id:'c-6-uc-auto', source:'do-6-uc-s',target:'do-6-auto',  relationship:'r-uc-save-auto' },
+        { id:'c-6-auto-ls', source:'do-6-auto',target:'do-6-ls',    relationship:'r-auto-ls-6' },
+      ],
+    },
+
+    /* ============ View 7: Export roundtrip ============ */
+    {
+      id:'v-7-export',
+      name:'7. Data-flow — Export met __style_* roundtrip (default AAN)',
+      width:1600, height:680,
+      title:'Data-flow — Export-dialog "Met opmaak" laat IO de styles platslaan tot __style_*-kolommen',
+      objects:[
+        { id:'do-7-user', element:'e-user',     x: 60, y:120, w:200, h:80 },
+        { id:'do-7-uc',   element:'e-uc-export',x:320, y:120, w:220, h:80 },
+        { id:'do-7-tbset',element:'e-tb-set',   x:580, y:120, w:280, h:90 },
+        { id:'do-7-io',   element:'e-io',       x:920, y:120, w:240, h:90 },
+        { id:'do-7-papa', element:'e-papa',     x:1220,y:120, w:240, h:90 },
+
+        { id:'do-7-store',element:'e-store',    x: 60, y:300, w:780, h:80 },
+        { id:'do-7-sty',  element:'e-do-styles',x:900, y:300, w:300, h:80 },
+
+        { id:'do-7-fa',   element:'e-fileapi',  x:1220,y:300, w:240, h:80 },
+
+        { id:'do-7-n',    element:'n-roundtrip',x:580, y:450, w:380, h:120 },
+      ],
+      connections:[
+        { id:'c-7-u-uc',    source:'do-7-user', target:'do-7-uc',   relationship:'r-user-uc-exp' },
+        { id:'c-7-uc-tbset',source:'do-7-uc',   target:'do-7-tbset',relationship:'r-uc-exp-tb' },
+        { id:'c-7-tbset-io',source:'do-7-tbset',target:'do-7-io',   relationship:'r-tbset-io' },
+        { id:'c-7-io-store',source:'do-7-io',   target:'do-7-store',relationship:'r-io-store-7' },
+        { id:'c-7-io-sty',  source:'do-7-io',   target:'do-7-sty',  relationship:'r-io-flatten' },
+        { id:'c-7-io-papa', source:'do-7-io',   target:'do-7-papa', relationship:'r-io-papa-7' },
+        { id:'c-7-papa-fa', source:'do-7-papa', target:'do-7-fa',   relationship:'r-papa-blob' },
+        { id:'c-7-fa-u',    source:'do-7-fa',   target:'do-7-user', relationship:'r-blob-user' },
+        { id:'c-7-n',       source:'do-7-n',    target:'do-7-tbset',relationship:'r-n-rt7' },
+      ],
+    },
+
+    /* ============ View 8: Roadmap plateaus v0.0.1 → v1.0.0 ============ */
+    {
+      id:'v-8-roadmap',
+      name:'8. Roadmap — Plateaus v0.0.1-Friesian … v1.0.0-Lusitano',
+      width:2400, height:560,
+      title:'Roadmap — 11 plateaus van skeleton tot public stable, 10 work packages, 3 deliverables',
+      objects:[
+        { id:'do-8-pl1', element:'e-plat-001', x:  20, y:240, w:200, h:100 },
+        { id:'do-8-wp2', element:'e-wp-002',   x: 240, y:240, w:200, h:100 },
+        { id:'do-8-pl2', element:'e-plat-002', x: 460, y:240, w:200, h:100 },
+        { id:'do-8-wp3', element:'e-wp-003',   x: 680, y:240, w:200, h:100 },
+        { id:'do-8-pl3', element:'e-plat-003', x: 900, y:240, w:200, h:100 },
+        { id:'do-8-wp10',element:'e-wp-010',   x:1120, y:240, w:200, h:100 },
+        { id:'do-8-pl10',element:'e-plat-010', x:1340, y:240, w:200, h:100 },
+        { id:'do-8-wp11',element:'e-wp-011',   x:1560, y:240, w:200, h:100 },
+        { id:'do-8-pl11',element:'e-plat-011', x:1780, y:240, w:200, h:100 },
+        { id:'do-8-wp12',element:'e-wp-012',   x:2000, y:240, w:200, h:100 },
+        { id:'do-8-pl12',element:'e-plat-012', x:2220, y: 80, w:160, h:100 },
+        { id:'do-8-wp20',element:'e-wp-020',   x:2220, y:240, w:160, h:100 },
+        { id:'do-8-pl20',element:'e-plat-020', x:2220, y:400, w:160, h:100 },
+
+        /* Tweede rij voor 030+ */
+        { id:'do-8-wp30',element:'e-wp-030',   x:2000, y:400, w:200, h:100 },
+        { id:'do-8-pl30',element:'e-plat-030', x:1780, y:400, w:200, h:100 },
+        { id:'do-8-wp40',element:'e-wp-040',   x:1560, y:400, w:200, h:100 },
+        { id:'do-8-pl40',element:'e-plat-040', x:1340, y:400, w:200, h:100 },
+        { id:'do-8-wp50',element:'e-wp-050',   x:1120, y:400, w:200, h:100 },
+        { id:'do-8-pl50',element:'e-plat-050', x: 900, y:400, w:200, h:100 },
+        { id:'do-8-wp100',element:'e-wp-100',  x: 680, y:400, w:200, h:100 },
+        { id:'do-8-pl100',element:'e-plat-100',x: 460, y:400, w:200, h:100 },
+
+        /* Deliverables onderaan */
+        { id:'do-8-dmvp', element:'e-deliv-mvp',   x:2080, y:  40, w:300, h:50 },
+        { id:'do-8-ddep', element:'e-deliv-deploy',x: 720, y: 520, w:300, h:50 },
+        { id:'do-8-dst',  element:'e-deliv-stable',x: 240, y: 520, w:300, h:50 },
+      ],
+      connections:[
+        { id:'c-8-1-2',   source:'do-8-pl1',  target:'do-8-wp2',  relationship:'r-pl1-wp2' },
+        { id:'c-8-2-2p',  source:'do-8-wp2',  target:'do-8-pl2',  relationship:'r-wp2-pl2' },
+        { id:'c-8-2-3',   source:'do-8-pl2',  target:'do-8-wp3',  relationship:'r-pl2-wp3' },
+        { id:'c-8-3-3p',  source:'do-8-wp3',  target:'do-8-pl3',  relationship:'r-wp3-pl3' },
+        { id:'c-8-3-10',  source:'do-8-pl3',  target:'do-8-wp10', relationship:'r-pl3-wp10' },
+        { id:'c-8-10p',   source:'do-8-wp10', target:'do-8-pl10', relationship:'r-wp10-pl10' },
+        { id:'c-8-10-11', source:'do-8-pl10', target:'do-8-wp11', relationship:'r-pl10-wp11' },
+        { id:'c-8-11p',   source:'do-8-wp11', target:'do-8-pl11', relationship:'r-wp11-pl11' },
+        { id:'c-8-11-12', source:'do-8-pl11', target:'do-8-wp12', relationship:'r-pl11-wp12' },
+        { id:'c-8-12p',   source:'do-8-wp12', target:'do-8-pl12', relationship:'r-wp12-pl12' },
+        { id:'c-8-12-20', source:'do-8-pl12', target:'do-8-wp20', relationship:'r-pl12-wp20' },
+        { id:'c-8-20p',   source:'do-8-wp20', target:'do-8-pl20', relationship:'r-wp20-pl20' },
+        { id:'c-8-20-30', source:'do-8-pl20', target:'do-8-wp30', relationship:'r-pl20-wp30' },
+        { id:'c-8-30p',   source:'do-8-wp30', target:'do-8-pl30', relationship:'r-wp30-pl30' },
+        { id:'c-8-30-40', source:'do-8-pl30', target:'do-8-wp40', relationship:'r-pl30-wp40' },
+        { id:'c-8-40p',   source:'do-8-wp40', target:'do-8-pl40', relationship:'r-wp40-pl40' },
+        { id:'c-8-40-50', source:'do-8-pl40', target:'do-8-wp50', relationship:'r-pl40-wp50' },
+        { id:'c-8-50p',   source:'do-8-wp50', target:'do-8-pl50', relationship:'r-wp50-pl50' },
+        { id:'c-8-50-100',source:'do-8-pl50', target:'do-8-wp100',relationship:'r-pl50-wp100' },
+        { id:'c-8-100p',  source:'do-8-wp100',target:'do-8-pl100',relationship:'r-wp100-pl100' },
+        { id:'c-8-mvp',   source:'do-8-dmvp', target:'do-8-pl20', relationship:'r-mvp-pl20' },
+        { id:'c-8-dep',   source:'do-8-ddep', target:'do-8-pl50', relationship:'r-dep-pl50' },
+        { id:'c-8-stab',  source:'do-8-dst',  target:'do-8-pl100',relationship:'r-stab-pl100' },
+      ],
+    },
+  ],
+};
+
+/* ============================================================
+ * Globale state
+ * ============================================================ */
+let MODEL = clone(DEFAULT_MODEL);
+let currentViewId = MODEL.views[0].id;
+
+/* ============================================================
+ * Utils
+ * ============================================================ */
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function el(tag, attrs={}, children=[]){
+  const NS = 'http://www.w3.org/2000/svg';
+  const n = document.createElementNS(NS, tag);
+  for(const k in attrs){
+    if(attrs[k]===null||attrs[k]===undefined) continue;
+    n.setAttribute(k, attrs[k]);
+  }
+  for(const c of (Array.isArray(children)?children:[children])){
+    if(c==null) continue;
+    if(typeof c === 'string') n.appendChild(document.createTextNode(c));
+    else n.appendChild(c);
+  }
+  return n;
+}
+function xmlEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function elementById(id){ return MODEL.elements.find(e=>e.id===id); }
+function relationshipById(id){ return MODEL.relationships.find(r=>r.id===id); }
+function viewById(id){ return MODEL.views.find(v=>v.id===id); }
+function diagramObjectById(view, id){ return view.objects.find(o=>o.id===id); }
+function typeDef(typeName){ return TYPES[typeName] || TYPES.Note; }
+function layerColorOf(typeName){
+  const t = typeDef(typeName);
+  return getComputedStyle(document.documentElement).getPropertyValue('--c-'+t.layer).trim() || '#eee';
+}
+function setLog(msg, kind='info'){
+  const l = document.getElementById('log');
+  if(!msg){ l.textContent=''; l.classList.add('empty'); return; }
+  l.textContent = msg;
+  l.classList.remove('empty');
+  l.style.borderLeftColor = (kind==='error')?'#d9534f':(kind==='ok')?'#2c8a2c':'#d4b300';
+  l.style.background = (kind==='error')?'#fdecea':(kind==='ok')?'#eaf6ea':'#fff8d8';
+}
+function setInfo(html){ document.getElementById('info').innerHTML = html; }
+
+/* ============================================================
+ * Renderer (SVG)
+ * ============================================================ */
+function render(){
+  const svg = document.getElementById('canvas');
+  svg.innerHTML = '';
+  const view = viewById(currentViewId);
+  if(!view){ setLog('View niet gevonden: '+currentViewId,'error'); return; }
+
+  svg.setAttribute('width',  view.width);
+  svg.setAttribute('height', view.height);
+  svg.setAttribute('viewBox', `0 0 ${view.width} ${view.height}`);
+  document.querySelector('#canvas-wrap').style.width = view.width+'px';
+
+  const defs = el('defs');
+  const flt = el('filter',{id:'visio-shadow', x:'-10%', y:'-10%', width:'120%', height:'120%'});
+  flt.appendChild(el('feGaussianBlur',{in:'SourceAlpha', stdDeviation:'1.4'}));
+  flt.appendChild(el('feOffset',{dx:'2.5', dy:'2.5', result:'off'}));
+  const merge = el('feMerge');
+  merge.appendChild(el('feMergeNode',{in:'off'}));
+  merge.appendChild(el('feMergeNode',{in:'SourceGraphic'}));
+  flt.appendChild(merge);
+  defs.appendChild(flt);
+
+  defs.appendChild(buildMarker('m-arrow',         'arrow',         '#444'));
+  defs.appendChild(buildMarker('m-arrow-open',    'arrow-open',    '#444'));
+  defs.appendChild(buildMarker('m-diamond-filled','diamond-filled','#444'));
+  defs.appendChild(buildMarker('m-diamond-open',  'diamond-open',  '#444'));
+  defs.appendChild(buildMarker('m-triangle-open', 'triangle-open', '#444'));
+  defs.appendChild(buildMarker('m-dot',           'dot',           '#444'));
+  svg.appendChild(defs);
+
+  const title = el('text', {x: view.width/2, y: 36, 'text-anchor':'middle',
+    'font-family':'Calibri, Arial, sans-serif', 'font-size':'18', 'font-weight':'600', fill:'#222'},
+    view.title || view.name);
+  svg.appendChild(title);
+  const subtitle = el('text', {x: view.width/2, y: 56, 'text-anchor':'middle',
+    'font-family':'Calibri, Arial, sans-serif', 'font-size':'11', fill:'#666'},
+    MODEL.name + '  ·  view: ' + view.name);
+  svg.appendChild(subtitle);
+
+  const gConn = el('g',{id:'connections'});
+  for(const c of (view.connections||[])){
+    drawConnection(gConn, view, c);
+  }
+  svg.appendChild(gConn);
+
+  const gObj = el('g',{id:'objects'});
+  for(const o of view.objects){
+    drawObject(gObj, o);
+  }
+  svg.appendChild(gObj);
+}
+
+function buildMarker(id, shape, color){
+  const m = el('marker',{id, viewBox:'0 0 12 12', refX:'10', refY:'6',
+    markerWidth:'10', markerHeight:'10', orient:'auto-start-reverse'});
+  if(shape==='arrow'){
+    m.appendChild(el('path',{d:'M0,0 L12,6 L0,12 z', fill:color}));
+  } else if(shape==='arrow-open'){
+    m.appendChild(el('path',{d:'M0,0 L12,6 L0,12', fill:'none', stroke:color, 'stroke-width':'1.4'}));
+  } else if(shape==='diamond-filled'){
+    m.setAttribute('refX','11');
+    m.appendChild(el('path',{d:'M0,6 L6,0 L12,6 L6,12 z', fill:color}));
+  } else if(shape==='diamond-open'){
+    m.setAttribute('refX','11');
+    m.appendChild(el('path',{d:'M0,6 L6,0 L12,6 L6,12 z', fill:'#fff', stroke:color, 'stroke-width':'1.2'}));
+  } else if(shape==='triangle-open'){
+    m.appendChild(el('path',{d:'M0,0 L12,6 L0,12 z', fill:'#fff', stroke:color, 'stroke-width':'1.2'}));
+  } else if(shape==='dot'){
+    m.setAttribute('refX','6');
+    m.appendChild(el('circle',{cx:'6', cy:'6', r:'3', fill:color}));
+  }
+  return m;
+}
+
+function drawObject(g, obj){
+  const elt = elementById(obj.element);
+  if(!elt){
+    g.appendChild(el('rect',{x:obj.x, y:obj.y, width:obj.w, height:obj.h,
+      fill:'#fee', stroke:'#a00', 'stroke-dasharray':'4,3'}));
+    return;
+  }
+  const td = typeDef(elt.type);
+  const baseFill = layerColorOf(elt.type);
+  let fill = baseFill;
+  let stroke = '#5a5a5a';
+  let strokeW = 1.5;
+  let extraDash = null;
+  if(obj.highlight==='warn'){ stroke='#d68a00'; strokeW=2.2; }
+  if(obj.highlight==='fail'){ stroke='#c0392b'; strokeW=2.4; extraDash='6,3'; fill = '#ffd9d9'; }
+  if(obj.highlight==='ok')  { stroke='#2c8a2c'; strokeW=2.2; }
+  const isNote = (elt.type==='Note');
+
+  const grp = el('g',{filter:'url(#visio-shadow)'});
+
+  if(isNote){
+    const fold = 14;
+    const x=obj.x, y=obj.y, w=obj.w, h=obj.h;
+    grp.appendChild(el('path',{
+      d:`M${x},${y} L${x+w-fold},${y} L${x+w},${y+fold} L${x+w},${y+h} L${x},${y+h} z`,
+      fill:'#fffde0', stroke:'#b58a00', 'stroke-width':1.2}));
+    grp.appendChild(el('path',{
+      d:`M${x+w-fold},${y} L${x+w-fold},${y+fold} L${x+w},${y+fold}`,
+      fill:'none', stroke:'#b58a00', 'stroke-width':1.2}));
+  } else {
+    grp.appendChild(el('rect',{x:obj.x, y:obj.y, width:obj.w, height:obj.h,
+      rx:3, ry:3, fill:fill, stroke:stroke, 'stroke-width':strokeW,
+      'stroke-dasharray': extraDash}));
+    grp.appendChild(el('rect',{x:obj.x, y:obj.y, width:obj.w, height:16,
+      rx:3, ry:3, fill:'rgba(255,255,255,0.45)', stroke:'none'}));
+    grp.appendChild(el('text',{x:obj.x+6, y:obj.y+12,
+      'font-family':'Calibri, Arial, sans-serif', 'font-size':'9.5',
+      fill:'#555', 'font-style':'italic'}, '«'+humanType(elt.type)+'»'));
+    const ix = obj.x + obj.w - 22;
+    const iy = obj.y + 4;
+    const ig = el('g',{ transform:`translate(${ix},${iy})` });
+    ig.appendChild(el('rect',{x:0, y:0, width:16, height:16, fill:'rgba(255,255,255,0.0)'}));
+    ig.appendChild(el('path',{d:td.icon, fill:'none', stroke:'#444', 'stroke-width':1.1}));
+    grp.appendChild(ig);
+  }
+
+  drawText(grp, elt.name, obj, isNote);
+  g.appendChild(grp);
+}
+
+function humanType(t){
+  return t.replace(/([A-Z])/g,' $1').trim();
+}
+
+function drawText(g, txt, obj, isNote){
+  const lines = String(txt).split('\n');
+  const padTop = isNote ? 8 : 24;
+  const cx = obj.x + obj.w/2;
+  const fontSize = isNote ? 11.5 : 12.5;
+  const lineH = fontSize + 3;
+  const totalH = lines.length * lineH;
+  const startY = obj.y + padTop + (obj.h - padTop - totalH)/2 + lineH*0.8;
+  for(let i=0;i<lines.length;i++){
+    g.appendChild(el('text',{
+      x: cx, y: startY + i*lineH,
+      'text-anchor':'middle',
+      'font-family':'Calibri, Arial, sans-serif',
+      'font-size': fontSize,
+      'font-weight': (i===0 && !isNote) ? 600 : 400,
+      fill:'#202020'
+    }, lines[i]));
+  }
+}
+
+function drawConnection(g, view, conn){
+  const src = diagramObjectById(view, conn.source);
+  const tgt = diagramObjectById(view, conn.target);
+  const rel = relationshipById(conn.relationship);
+  if(!src||!tgt||!rel) return;
+
+  const rt = REL_TYPES[rel.type] || REL_TYPES.Association;
+  const [p1, p2] = anchorPoints(src, tgt);
+
+  const stroke = '#444';
+  const sw = 1.5;
+
+  const line = el('line',{
+    x1:p1.x, y1:p1.y, x2:p2.x, y2:p2.y,
+    stroke:stroke, 'stroke-width':sw,
+    'stroke-dasharray': rt.dash || null,
+    'marker-end': markerUrl(rt.marker),
+  });
+  g.appendChild(line);
+
+  if(rel.name){
+    const mx = (p1.x+p2.x)/2;
+    const my = (p1.y+p2.y)/2;
+    const lines = rel.name.split('\n');
+    const lw = Math.max(...lines.map(l=>l.length)) * 6.2 + 10;
+    const lh = lines.length*13 + 6;
+    g.appendChild(el('rect',{x: mx-lw/2, y: my-lh/2, width:lw, height:lh,
+      fill:'#ffffff', stroke:'#bbb', 'stroke-width':0.6, rx:2, ry:2, opacity:0.95}));
+    for(let i=0;i<lines.length;i++){
+      g.appendChild(el('text',{x:mx, y: my - lh/2 + 13 + i*13,
+        'text-anchor':'middle', 'font-family':'Calibri, Arial, sans-serif',
+        'font-size':'10.5', fill:'#333'}, lines[i]));
+    }
+  }
+}
+
+function markerUrl(name){
+  if(!name) return null;
+  return 'url(#m-'+name+')';
+}
+
+function anchorPoints(a, b){
+  const ac = { x: a.x + a.w/2, y: a.y + a.h/2 };
+  const bc = { x: b.x + b.w/2, y: b.y + b.h/2 };
+  return [ clipToRect(ac, bc, a), clipToRect(bc, ac, b) ];
+}
+function clipToRect(from, to, rect){
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if(dx===0 && dy===0) return {x:from.x, y:from.y};
+  const hw = rect.w/2, hh = rect.h/2;
+  const cx = rect.x + hw, cy = rect.y + hh;
+  const tX = dx===0 ? Infinity : hw / Math.abs(dx);
+  const tY = dy===0 ? Infinity : hh / Math.abs(dy);
+  const t = Math.min(tX, tY);
+  return { x: cx + dx*t, y: cy + dy*t };
+}
+
+/* ============================================================
+ * Diagram selector + legenda
+ * ============================================================ */
+function refreshSelector(){
+  const sel = document.getElementById('diagramSelect');
+  sel.innerHTML = '';
+  for(const v of MODEL.views){
+    const o = document.createElement('option');
+    o.value = v.id;
+    o.textContent = v.name;
+    sel.appendChild(o);
+  }
+  sel.value = currentViewId;
+}
+function refreshLegend(){
+  const lg = document.getElementById('legend');
+  lg.innerHTML = '';
+  const layers = [
+    ['business','Business'],
+    ['application','Application'],
+    ['technology','Technology'],
+    ['motivation','Motivation'],
+    ['impl','Implementation &amp; Migration'],
+    ['strategy','Strategy'],
+    ['other','Note / overig'],
+  ];
+  for(const [k,n] of layers){
+    const c = getComputedStyle(document.documentElement).getPropertyValue('--c-'+k).trim();
+    const div = document.createElement('div');
+    div.className='item';
+    div.innerHTML = `<span class="sw" style="background:${c}"></span><span>${n}</span>`;
+    lg.appendChild(div);
+  }
+  const arrow = document.createElement('div');
+  arrow.className='item';
+  arrow.innerHTML = '<span style="display:inline-block;width:24px;border-top:1.5px solid #444;margin-bottom:3px;"></span><span style="margin-left:4px">Flow / Triggering / Serving / Access / Realization (zie label)</span>';
+  lg.appendChild(arrow);
+}
+function refreshInfo(){
+  setInfo(`<b>Model:</b> ${xmlEsc(MODEL.name)} &nbsp;·&nbsp; <b>Elements:</b> ${MODEL.elements.length} &nbsp;·&nbsp; <b>Relations:</b> ${MODEL.relationships.length} &nbsp;·&nbsp; <b>Views:</b> ${MODEL.views.length}`);
+}
+
+/* ============================================================
+ * JSON export/import
+ * ============================================================ */
+function exportJson(){
+  const txt = JSON.stringify(MODEL, null, 2);
+  downloadBlob(txt, (slug(MODEL.name)||'model') + '.json', 'application/json');
+}
+function importJson(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const obj = JSON.parse(r.result);
+      if(!obj.elements || !obj.relationships || !obj.views) throw new Error('JSON mist verplichte velden (elements/relationships/views)');
+      MODEL = obj;
+      currentViewId = MODEL.views[0].id;
+      refreshAll();
+      setLog('JSON geïmporteerd: '+file.name+' ('+MODEL.elements.length+' elementen, '+MODEL.views.length+' views)', 'ok');
+    } catch(e){ setLog('Import JSON faalde: '+e.message, 'error'); }
+  };
+  r.readAsText(file);
+}
+
+/* ============================================================
+ * .archimate (Archi-tool v5) export/import
+ * ============================================================ */
+function exportArchimate(){
+  const NS_X = 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"';
+  const NS_A = 'xmlns:archimate="http://www.archimatetool.com/archimate"';
+
+  const foldersOrder = ['strategy','business','application','technology','motivation','implementation_migration','other'];
+  const foldersByType = {};
+  for(const f of foldersOrder) foldersByType[f] = [];
+  for(const e of MODEL.elements){
+    const t = typeDef(e.type);
+    const f = LAYER[t.layer].folder;
+    foldersByType[f].push(e);
+  }
+
+  let out = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  out += `<archimate:model ${NS_X} ${NS_A} name="${xmlEsc(MODEL.name)}" id="${xmlEsc(MODEL.id)}" version="5.0.0">\n`;
+
+  for(const f of foldersOrder){
+    const items = foldersByType[f];
+    out += `  <folder name="${folderLabel(f)}" id="id-fld-${f}" type="${f}">\n`;
+    for(const e of items){
+      let archiType = e.type;
+      if(e.type==='Note') archiType = 'OtherElement';
+      if(e.type==='Principle') archiType = 'Requirement';
+      out += `    <element xsi:type="archimate:${archiType}" name="${xmlEsc(e.name)}" id="${xmlEsc(e.id)}"/>\n`;
+    }
+    out += `  </folder>\n`;
+  }
+
+  out += `  <folder name="Relations" id="id-fld-relations" type="relations">\n`;
+  for(const r of MODEL.relationships){
+    const rt = REL_TYPES[r.type] || REL_TYPES.Association;
+    const nm = r.name ? ` name="${xmlEsc(r.name)}"` : '';
+    out += `    <element xsi:type="archimate:${rt.archi}" id="${xmlEsc(r.id)}"${nm} source="${xmlEsc(r.source)}" target="${xmlEsc(r.target)}"/>\n`;
+  }
+  out += `  </folder>\n`;
+
+  out += `  <folder name="Views" id="id-fld-views" type="diagrams">\n`;
+  for(const v of MODEL.views){
+    out += `    <element xsi:type="archimate:ArchimateDiagramModel" name="${xmlEsc(v.name)}" id="${xmlEsc(v.id)}">\n`;
+    for(const o of v.objects){
+      const e = elementById(o.element);
+      if(!e) continue;
+      const fill = colorHexOf(e.type);
+      out += `      <child xsi:type="archimate:DiagramObject" id="${xmlEsc(o.id)}" archimateElement="${xmlEsc(o.element)}" fillColor="${fill}">\n`;
+      out += `        <bounds x="${o.x}" y="${o.y}" width="${o.w}" height="${o.h}"/>\n`;
+      for(const c of (v.connections||[])){
+        if(c.source===o.id){
+          out += `        <sourceConnection xsi:type="archimate:Connection" id="${xmlEsc(c.id)}" source="${xmlEsc(c.source)}" target="${xmlEsc(c.target)}" archimateRelationship="${xmlEsc(c.relationship)}"/>\n`;
+        }
+      }
+      out += `      </child>\n`;
+    }
+    out += `    </element>\n`;
+  }
+  out += `  </folder>\n`;
+
+  out += `</archimate:model>\n`;
+  downloadBlob(out, (slug(MODEL.name)||'model') + '.archimate', 'application/xml');
+}
+
+function folderLabel(f){
+  return {
+    strategy:'Strategy', business:'Business', application:'Application',
+    technology:'Technology &amp; Physical', motivation:'Motivation',
+    implementation_migration:'Implementation &amp; Migration', other:'Other'
+  }[f];
+}
+function colorHexOf(type){
+  const t = typeDef(type);
+  return ({
+    business:'#FFFFB5', application:'#B5FFFF',
+    technology:'#C9E7B7', motivation:'#CCCCFF', impl:'#FFE0E0',
+    strategy:'#F5DEB3', other:'#E8E8E8'
+  })[t.layer];
+}
+
+function importArchimate(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const doc = new DOMParser().parseFromString(r.result, 'application/xml');
+      if(doc.querySelector('parsererror')) throw new Error('XML-parse-fout');
+      const root = doc.documentElement;
+      if(!/archimate:?model$/i.test(root.tagName)) throw new Error('Geen <archimate:model> root gevonden');
+      const m = { name: root.getAttribute('name')||'Imported model',
+                  id: root.getAttribute('id')||('imported-'+Date.now()),
+                  version: root.getAttribute('version')||'5.0.0',
+                  elements:[], relationships:[], views:[] };
+
+      const archiTypeToInternal = {
+        BusinessActor:'BusinessActor', BusinessRole:'BusinessRole', BusinessService:'BusinessService',
+        BusinessProcess:'BusinessProcess', BusinessObject:'BusinessObject',
+        ApplicationComponent:'ApplicationComponent', ApplicationService:'ApplicationService',
+        ApplicationInterface:'ApplicationInterface', ApplicationCollaboration:'ApplicationCollab',
+        DataObject:'DataObject',
+        Node:'Node', Device:'Device', TechnologyService:'TechnologyService',
+        CommunicationNetwork:'CommunicationNetwork', SystemSoftware:'SystemSoftware',
+        WorkPackage:'WorkPackage', Deliverable:'Deliverable', Plateau:'Plateau', Gap:'Gap',
+        Stakeholder:'Stakeholder', Driver:'Driver', Goal:'Goal', Requirement:'Requirement',
+        OtherElement:'Note', Note:'Note',
+      };
+      const archiRelToInternal = {};
+      for(const k in REL_TYPES) archiRelToInternal[REL_TYPES[k].archi] = k;
+
+      const allElements = doc.querySelectorAll('element');
+      for(const el of allElements){
+        const t = (el.getAttributeNS('http://www.w3.org/2001/XMLSchema-instance','type') || el.getAttribute('xsi:type') || '').replace(/^archimate:/,'');
+        const id = el.getAttribute('id');
+        const name = el.getAttribute('name') || '';
+        if(!t || !id) continue;
+        if(t==='ArchimateDiagramModel'){
+          const v = { id, name, width:1600, height:900, objects:[], connections:[], title:name };
+          for(const ch of el.children){
+            if(ch.tagName.toLowerCase()==='child'){
+              const aeRef = ch.getAttribute('archimateElement');
+              const bounds = ch.querySelector(':scope > bounds');
+              const obj = {
+                id: ch.getAttribute('id'),
+                element: aeRef,
+                x: parseInt(bounds?.getAttribute('x')||'0'),
+                y: parseInt(bounds?.getAttribute('y')||'0'),
+                w: parseInt(bounds?.getAttribute('width')||'120'),
+                h: parseInt(bounds?.getAttribute('height')||'60'),
+              };
+              v.objects.push(obj);
+              const sconns = ch.querySelectorAll(':scope > sourceConnection');
+              for(const sc of sconns){
+                v.connections.push({
+                  id: sc.getAttribute('id'),
+                  source: sc.getAttribute('source'),
+                  target: sc.getAttribute('target'),
+                  relationship: sc.getAttribute('archimateRelationship') || sc.getAttribute('relationship'),
+                });
+              }
+            }
+          }
+          m.views.push(v);
+        } else if(archiRelToInternal[t]){
+          m.relationships.push({
+            id, type: archiRelToInternal[t],
+            source: el.getAttribute('source'), target: el.getAttribute('target'),
+            name: name || undefined,
+          });
+        } else if(archiTypeToInternal[t]){
+          m.elements.push({ id, type: archiTypeToInternal[t], name });
+        }
+      }
+
+      if(m.views.length===0) throw new Error('Geen views (ArchimateDiagramModel) in bestand');
+      MODEL = m;
+      currentViewId = MODEL.views[0].id;
+      refreshAll();
+      setLog('.archimate geïmporteerd: '+file.name+' ('+m.elements.length+' elementen, '+m.relationships.length+' relaties, '+m.views.length+' views)', 'ok');
+    } catch(e){ setLog('Import .archimate faalde: '+e.message, 'error'); }
+  };
+  r.readAsText(file);
+}
+
+/* ============================================================
+ * SVG-export
+ * ============================================================ */
+function exportSvg(){
+  const svg = document.getElementById('canvas');
+  const cloneSvg = svg.cloneNode(true);
+  const colorMap = {
+    '--c-strategy':'#F5DEB3','--c-business':'#FFFFB5','--c-application':'#B5FFFF',
+    '--c-technology':'#C9E7B7','--c-motivation':'#CCCCFF','--c-impl':'#FFE0E0','--c-other':'#E8E8E8',
+  };
+  let txt = new XMLSerializer().serializeToString(cloneSvg);
+  for(const v in colorMap) txt = txt.replaceAll(`var(${v})`, colorMap[v]);
+  txt = `<?xml version="1.0" encoding="UTF-8"?>\n` + txt;
+  const view = viewById(currentViewId);
+  downloadBlob(txt, slug(view?view.name:MODEL.name) + '.svg', 'image/svg+xml');
+}
+
+/* ============================================================
+ * Helpers
+ * ============================================================ */
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], {type: mime+';charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+function slug(s){
+  return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+function refreshAll(){
+  refreshSelector();
+  refreshInfo();
+  refreshLegend();
+  render();
+}
+
+/* ============================================================
+ * Wiring
+ * ============================================================ */
+document.getElementById('diagramSelect').addEventListener('change', e=>{
+  currentViewId = e.target.value;
+  render();
+});
+document.getElementById('btnExportJson').addEventListener('click', exportJson);
+document.getElementById('btnExportArchimate').addEventListener('click', exportArchimate);
+document.getElementById('btnExportSvg').addEventListener('click', exportSvg);
+document.getElementById('impJson').addEventListener('change', e=>{ if(e.target.files[0]) importJson(e.target.files[0]); e.target.value=''; });
+document.getElementById('impArchimate').addEventListener('change', e=>{ if(e.target.files[0]) importArchimate(e.target.files[0]); e.target.value=''; });
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  MODEL = clone(DEFAULT_MODEL);
+  currentViewId = MODEL.views[0].id;
+  refreshAll();
+  setLog('Ingebouwde model hersteld','ok');
+});
+
+refreshAll();
+</script>
+</body>
+</html>

@@ -193,3 +193,25 @@ Per cel kan een StyleObj de volgende properties hebben (alles optioneel):
 | Virtual-scroll algoritme | Renderer, performance bij grote datasets, scroll-anchor gedrag |
 
 Zie [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) voor uitgebreide afhankelijkheidsmatrix.
+
+## 8. ArchiMate-viewer
+
+Voor een visuele weergave van bovenstaande architectuur in ArchiMate-stijl (8 views, Visio-look, deterministisch):
+
+**Bestand:** [`architectuur/CSVHorse_viewer.html`](architectuur/CSVHorse_viewer.html) — standalone single-file HTML, geen dependencies, opent via `file://`.
+
+**Views:**
+1. Conceptueel — Stakeholder · Driver · 8 Principes (Motivation layer)
+2. Component-architectuur — Application + Technology lagen
+3. Data-flow — CSV import + style-lift
+4. Data-flow — SQL query / UI-filter → viewSet
+5. Data-flow — Cell edit + undo/redo (Command stack)
+6. Data-flow — Opmaak + autosave naar localStorage
+7. Data-flow — Export met `__style_*` roundtrip (default AAN)
+8. Roadmap — Plateaus v0.0.1-Friesian … v1.0.0-Lusitano
+
+**Functionaliteit:** view-selector, JSON-export (intern), `.archimate`-export (Archi-tool v5 compatibel), SVG-export per view, JSON+`.archimate` import om model te vervangen, reset naar ingebouwde model.
+
+**Stijl:** identiek aan `WerkDierenbescherming/architectuur/solution/telefonie/telefonie_viewer.html` — Visio-look met drop-shadow, Calibri/Arial, `«ElementType»`-banner + 16×16 ArchiMate-icoon, layer-kleuren conform ArchiMate-conventie.
+
+**Model-statistieken:** 74 elementen + 5 notes, 117 relaties, 8 views met 123 diagram-objects en 121 connections.

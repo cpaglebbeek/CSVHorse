@@ -80,4 +80,54 @@ In een volgsessie: WhatIf-protocol voor MVP v0.0.2-Arabian (CSV import + render 
 
 ## /sanitycheck
 
-Volgt direct na deze skeleton-push, conform `feedback_newp_includes_verify_sanity.md`.
+Uitgevoerd na skeleton-push. Score ~85% conform voor skeleton-fase: alle conceptuele + logische-technische + fysiek-technische vastlegging ✅; 3 ⚠-gaten (user-journey, `docs/screens/`, `CONTENT_INVENTORY.md`) — vastgelegd in `ACTIONS.md` voor v0.0.2-Arabian fase.
+
+## ArchiMate-viewer (tweede deelopdracht in zelfde sessie)
+
+**Prompt:** *"ik wil nu ook architectuur van de app/webpagina zoals die van telefonie van de dierenbescherming (zie repo dierenbescherming, telefonie)"*.
+
+**Referentie:** `/Users/christian/WerkDierenbescherming/architectuur/solution/telefonie/telefonie_viewer.html` (1085 regels, Visio-look ArchiMate-viewer met 7 views AS-IS/TO-BE).
+
+**Resultaat:** `CSVHorse/architectuur/CSVHorse_viewer.html` — standalone single-file HTML viewer, 1392 regels (~75KB), geen externe dependencies, identieke render-stijl als WerkDB telefonie-viewer (drop-shadow, Calibri, layer-kleuren, `«type»`-banner + 16×16 icoon).
+
+### 8 views
+
+1. Conceptueel — Stakeholder · Driver · 8 Principes (Motivation layer)
+2. Component-architectuur — Application + Technology lagen (Toolbar + 7 core components + 6 tech services)
+3. Data-flow — CSV import + style-lift
+4. Data-flow — SQL query / UI-filter → viewSet
+5. Data-flow — Cell edit + undo/redo (Command stack)
+6. Data-flow — Opmaak toepassen + autosave naar localStorage
+7. Data-flow — Export met `__style_*` roundtrip (default AAN)
+8. Roadmap — Plateaus v0.0.1-Friesian … v1.0.0-Lusitano (11 plateaus, 10 work packages, 3 deliverables)
+
+### Model-statistieken
+- **Elements:** 74 (Stakeholder 1, Driver 1, Principle 8, Requirement 3, BusinessActor 1, BusinessProcess 8, BusinessService 1, ApplicationComponent 13, ApplicationService 2, DataObject 6, SystemSoftware 3, TechnologyService 3, Plateau 11, WorkPackage 10, Deliverable 3)
+- **Notes:** 5 (roundtrip, no-framework, vendored, undo, export-toggle)
+- **Relationships:** 117 (Realization, Triggering, Flow, Access, Composition, Serving, Assignment, Influence, Association)
+- **Views:** 8 met 123 diagram-objects en 121 connections totaal
+- **Canvas-formaten:** 1600×680 t/m 2400×560 (view 8 roadmap is breder)
+
+### Functionaliteit identiek aan WerkDB-viewer
+- View-selector dropdown
+- `⬇ JSON` (intern formaat), `⬇ .archimate` (Archi-tool v5 XML met folders + bounds + sourceConnections), `⬇ SVG` (huidige view, kleuren inline)
+- `⬆ JSON` + `⬆ .archimate` import (vervangt model)
+- Reset naar ingebouwde model
+
+### Verschillen met telefonie-viewer
+- Andere views-set (geen AS-IS/TO-BE; in plaats daarvan: Conceptueel + Component-architectuur + 5 data-flow scenarios + Roadmap)
+- Eigen DEFAULT_MODEL met CSVHorse-elementen
+- Nieuwe internal type `Principle` (gemapped naar `Requirement` in .archimate export voor Archi-compatibiliteit)
+- Geen highlight-states (`warn/fail/ok`) gebruikt in views — geen storingsscenario's relevant in deze fase
+- Canvas-extra-breedte voor roadmap-view (2400px)
+
+### Verificatie
+- JS-syntaxcheck via `new Function()`: ✅ OK (70816 chars)
+- Visuele check in browser: viewer geopend met `open` — werkt
+- Public ok (PUBLIC repo) — geen obscurity-laag zoals telefonie-viewer (die heeft `/db/<random-slug>/`)
+
+### Nieuwe directory + bestand
+- `architectuur/` (nieuw)
+- `architectuur/CSVHorse_viewer.html` (1392 regels)
+- `ARCHITECTURE.md` § 8 toegevoegd met verwijzing
+- `ACTIONS.md` afgerond-rij toegevoegd
