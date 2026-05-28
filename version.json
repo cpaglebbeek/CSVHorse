@@ -1,7 +1,10 @@
 {
-  "version": "0.2.0.2",
-  "codename": "Mustang",
+  "product": "SheetHorse",
+  "branch": "sheethorse",
+  "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch)",
+  "version": "0.0.1",
+  "codename": "Haflinger",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 9 + patch: autosave UIT wist snapshot · lege CSV starten via dialog (kolom/rij-aantal)"
+  "phase": "Skeleton: fork van CSVHorse v0.2.0.2 + naam-shift + skeleton-docs; Excel/multi-sheet/relaties/SQL-joins volgen in v0.1.0+"
 }
