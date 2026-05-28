@@ -2,9 +2,9 @@
   "product": "SheetHorse",
   "branch": "sheethorse",
   "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch) — incl. cherry-pick v0.2.0.3 header-edit",
-  "version": "0.4.0",
-  "codename": "Akhal-Teke",
+  "version": "0.5.0",
+  "codename": "Knabstrupper",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "SQL met joins over multi-sheet: alle sheets als named tables in AlaSQL (incl. brackets-escape voor namen met spaties), query-resultaat als read-only sheet (📊 Query result) in tab-strip, _query metadata-sheet bij XLSX-roundtrip. Auto-suggesties op basis van relaties uit v0.3.0."
+  "phase": "CSV-met-metadata format: multi-tabel + relaties + lastQuery in één CSV-bestand via marker-syntax (# TABLE <naam> / # RELATIONS / # QUERY). Auto-detect bij import via marker-scan. Style-roundtrip per tabel (__style_*). Export-dialog format-dropdown: csv / csv-multi / xlsx. Volledige roundtrip-pariteit voor virtuele relationele DB zonder Excel."
 }

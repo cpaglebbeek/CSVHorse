@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.4.0-Akhal-Teke (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.5.0-Knabstrupper (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -684,7 +684,7 @@
     #toast.show { opacity:1; }
     #toast.error { border-left-color:var(--color-danger); }
 
-    /* Relations panel (SheetHorse v0.4.0-Akhal-Teke) */
+    /* Relations panel (SheetHorse v0.5.0-Knabstrupper) */
     #relationsPanel {
       flex:1 1 auto;
       display:none;
@@ -778,7 +778,7 @@
       text-align:center; padding:var(--space-5);
       color:var(--color-text-dim);
     }
-    /* Speciale Query-result-tab in tab-strip (v0.4.0-Akhal-Teke) */
+    /* Speciale Query-result-tab in tab-strip (v0.5.0-Knabstrupper) */
     .sheet-tabs .tab.result-tab {
       color:#59c5a8;
       border-top-color:transparent;
@@ -823,7 +823,7 @@
       font-weight:700;
     }
 
-    /* Sheet-tabs (SheetHorse v0.4.0-Akhal-Teke) */
+    /* Sheet-tabs (SheetHorse v0.5.0-Knabstrupper) */
     .sheet-tabs {
       flex:0 0 auto;
       display:flex;
@@ -899,7 +899,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.4.0-Akhal-Teke</span>
+  <span class="badge">v0.5.0-Knabstrupper</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -1123,7 +1123,7 @@
   <div class="modal">
     <h3 id="sheetPickerTitle">📑 Excel: meerdere tabbladen</h3>
     <div class="modal-body">
-      <div class="modal-hint">Dit Excel-bestand bevat <strong id="sheetPickerCount">N</strong> tabbladen. Kies welk tabblad je wil importeren — de rest wordt genegeerd (multi-sheet runtime volgt v0.4.0-Akhal-Teke).</div>
+      <div class="modal-hint">Dit Excel-bestand bevat <strong id="sheetPickerCount">N</strong> tabbladen. Kies welk tabblad je wil importeren — de rest wordt genegeerd (multi-sheet runtime volgt v0.5.0-Knabstrupper).</div>
       <label>Tabblad:
         <select id="sheetPickerSelect"></select>
       </label>
@@ -1165,8 +1165,9 @@
       </label>
       <label>Formaat:
         <select id="exportFormat">
-          <option value="csv">CSV (.csv)</option>
-          <option value="xlsx">Excel (.xlsx) — native cell-styles</option>
+          <option value="csv">CSV (.csv) — single-tabel</option>
+          <option value="csv-multi">CSV multi-tabel (met markers) — alle sheets + relaties + query</option>
+          <option value="xlsx">Excel (.xlsx) — native cell-styles, multi-sheet</option>
         </select>
       </label>
       <label>
@@ -1197,7 +1198,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.4.0-Akhal-Teke (codenaam Akhal-Teke) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.5.0-Knabstrupper (codenaam Knabstrupper) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1527,7 +1528,7 @@ Expecting `+nr.join(", ")+", got '"+(this.terminals_[Le]||Le)+"'":Tn="Parse erro
 /* ============================================================
  * DataStore — single source of truth
  * ============================================================ */
-/* SheetHorse v0.4.0-Akhal-Teke: DataStore is multi-sheet.
+/* SheetHorse v0.5.0-Knabstrupper: DataStore is multi-sheet.
    Top-level rows/cols/styles/dialect verwijzen naar actieve sheet (kopie).
    sheets[] bewaart alle sheets met per-sheet state-snapshot.
    Bij switchTo(): huidige state wordt naar sheets[currentIdx] gesnapshot,
@@ -1548,7 +1549,7 @@ const DataStore = {
   _relIdSeq: 0,
   viewMode: 'data', /* 'data' (active sheet) of 'relations' (FK-tabblad) */
 
-  /* v0.4.0-Akhal-Teke: SQL met joins over multi-sheet */
+  /* v0.5.0-Knabstrupper: SQL met joins over multi-sheet */
   lastQuery: '',
   lastQueryAt: 0,
   RESULT_SHEET_NAME: '📊 Query result',
@@ -1798,7 +1799,7 @@ const DataStore = {
   },
 
   /* === Bestaande API (werkt op active sheet) === */
-  load({ rows, cols, dialect, fileName, styles, sheets }) {
+  load({ rows, cols, dialect, fileName, styles, sheets, relations, lastQuery }) {
     /* sheets[] heeft voorrang als opgegeven (multi-sheet load via import). */
     this.fileName = fileName || '';
     this.sheets = [];
@@ -1852,6 +1853,15 @@ const DataStore = {
       if (lastQueryFromSheet) {
         this.lastQuery = lastQueryFromSheet;
         this.lastQueryAt = Date.now();
+      }
+      /* v0.5.0: top-level lastQuery (uit multi-tabel CSV) wint */
+      if (lastQuery) {
+        this.lastQuery = lastQuery;
+        this.lastQueryAt = Date.now();
+      }
+      /* v0.5.0: top-level relations[] (uit multi-tabel CSV) */
+      if (Array.isArray(relations) && relations.length > 0) {
+        for (const r of relations) this.addRelation(r);
       }
       this.activeIdx = -1;
       this.switchTo(0, { skipSave: true });
@@ -2100,7 +2110,7 @@ const SQLEngine = {
       return false;
     }
     try {
-      /* v0.4.0-Akhal-Teke: registreer ALLE sheets als named tables
+      /* v0.5.0-Knabstrupper: registreer ALLE sheets als named tables
          in AlaSQL voor multi-sheet joins. Plus backwards-compat alias 'data'
          voor de actieve niet-result-sheet. */
       this._syncActiveSheetToTopLevel();
@@ -2141,7 +2151,7 @@ const SQLEngine = {
         return [o];
       });
       this.lastQuery = query;
-      /* v0.4.0-Akhal-Teke: query-result is nu een echte sheet, niet een aparte SQL-mode.
+      /* v0.5.0-Knabstrupper: query-result is nu een echte sheet, niet een aparte SQL-mode.
          active = false zodat oude UI-flow (read-only-blokkering via isQueryResult op de sheet) gebruikt wordt. */
       this.active = false;
       this.result = null;
@@ -2577,7 +2587,7 @@ const SearchReplace = {
 };
 
 /* ============================================================
- * ExcelIO — XLSX import + export (SheetHorse v0.4.0-Akhal-Teke)
+ * ExcelIO — XLSX import + export (SheetHorse v0.5.0-Knabstrupper)
  * Wrapper rond xlsx-populate (window.XlsxPopulate)
  * ============================================================ */
 const ExcelIO = {
@@ -2833,10 +2843,38 @@ const ExportService = {
     }
     opts = opts || {};
     const format = opts.format || 'csv';
-    if (format === 'xlsx') {
-      return this._exportXlsx(src, opts);
-    }
+    if (format === 'xlsx') return this._exportXlsx(src, opts);
+    if (format === 'csv-multi') return this._exportMultiCsv(src, opts);
     return this._exportCsv(src, opts);
+  },
+
+  _exportMultiCsv(src, opts) {
+    const withStyles = !!opts.withStyles;
+    const filename = opts.filename || this.defaultFilename(src.mode);
+    const finalFn = filename.replace(/\.csv$/i, '').replace(/\.xlsx$/i, '') + '.csv';
+    /* Sync active sheet → top-level voor accurate inhoud */
+    if (DataStore.activeIdx >= 0 && DataStore.sheets[DataStore.activeIdx] && !DataStore.sheets[DataStore.activeIdx].isQueryResult) {
+      DataStore.sheets[DataStore.activeIdx].rows = DataStore.rows;
+      DataStore.sheets[DataStore.activeIdx].cols = DataStore.cols;
+      DataStore.sheets[DataStore.activeIdx].styles = DataStore.styles;
+    }
+    const sheetsForExport = (DataStore.sheets || []).filter(s => !s.isQueryResult);
+    if (sheetsForExport.length === 0) {
+      UI.showToast('Geen werkbladen om te exporteren', 'warn');
+      return;
+    }
+    const csv = IO.flattenMultiSheetCsv(
+      sheetsForExport,
+      DataStore.relations || [],
+      DataStore.lastQuery || '',
+      { withStyles, dialect: DataStore.dialect }
+    );
+    this._download(csv, finalFn);
+    const extras = [];
+    if (DataStore.relations && DataStore.relations.length > 0) extras.push(`${DataStore.relations.length} relaties`);
+    if (DataStore.lastQuery) extras.push('1 query');
+    const extraTxt = extras.length ? ` (+ ${extras.join(' + ')})` : '';
+    UI.showToast(`Geëxporteerd CSV multi-tabel: ${sheetsForExport.length} werkbladen → ${finalFn}${extraTxt}`, 'ok');
   },
 
   _exportCsv(src, opts) {
@@ -2987,6 +3025,13 @@ const IO = {
     if (ExcelIO.isXlsx(file)) {
       return this._parseXlsxFile(file);
     }
+    /* v0.5.0-Knabstrupper: scan eerste 20 regels op multi-tabel-markers */
+    const headSample = (file.size > 8192) ? await file.slice(0, 8192).text() : await file.text();
+    const hasMarkers = /^# TABLE\s+/m.test(headSample);
+    if (hasMarkers) {
+      const fullText = await file.text();
+      return this._parseMultiTableCsv(fullText, file.name);
+    }
     return new Promise((resolve, reject) => {
       Papa.parse(file, {
         skipEmptyLines: true,
@@ -3019,6 +3064,159 @@ const IO = {
     });
   },
 
+  /* v0.5.0-Knabstrupper: parse multi-tabel-CSV met marker-conventie.
+     Markers: # TABLE <naam> · # RELATIONS · # QUERY  (op eigen regel).
+     Lege regels scheiden blokken. __style_*-kolommen werken per TABLE-blok. */
+  _parseMultiTableCsv(text, fileName) {
+    const lifted = IO.liftMultiSheetCsv(text);
+    if (!lifted || lifted.sheets.length === 0) {
+      throw new Error('Multi-tabel CSV-format gedetecteerd maar geen valide TABLE-blok gevonden');
+    }
+    const totalStyleCells = lifted.sheets.reduce(
+      (s, sh) => s + Object.values(sh.styles || {}).reduce((sum, r) => sum + Object.keys(r).length, 0), 0);
+    return {
+      rows: lifted.sheets[0].rows,
+      cols: lifted.sheets[0].cols,
+      styles: lifted.sheets[0].styles,
+      dialect: { delimiter: ',', newline: '\n', quoteChar: '"', decimal: '.' },
+      fileName,
+      errors: [],
+      stylesLifted: lifted.sheets.reduce((s, sh) => s + Object.keys(sh.styles).length, 0),
+      styleCellCount: totalStyleCells,
+      sourceFormat: 'csv-multi',
+      totalSheets: lifted.sheets.length,
+      sheets: lifted.sheets,
+      relations: lifted.relations,
+      lastQuery: lifted.lastQuery
+    };
+  },
+
+  liftMultiSheetCsv(rawText) {
+    const lines = String(rawText).split(/\r?\n/);
+    const blocks = [];
+    let cur = null;
+    for (const line of lines) {
+      const mT = line.match(/^# TABLE\s+(.+?)\s*$/);
+      const mR = /^# RELATIONS\s*$/.test(line);
+      const mQ = /^# QUERY\s*$/.test(line);
+      if (mT) {
+        if (cur) blocks.push(cur);
+        cur = { type: 'TABLE', name: mT[1].trim(), lines: [] };
+      } else if (mR) {
+        if (cur) blocks.push(cur);
+        cur = { type: 'RELATIONS', lines: [] };
+      } else if (mQ) {
+        if (cur) blocks.push(cur);
+        cur = { type: 'QUERY', lines: [] };
+      } else if (cur) {
+        cur.lines.push(line);
+      }
+    }
+    if (cur) blocks.push(cur);
+
+    const sheets = [];
+    const relations = [];
+    let lastQuery = '';
+
+    for (const blk of blocks) {
+      const txt = blk.lines.join('\r\n').replace(/^\s+|\s+$/g, '');
+      if (blk.type === 'TABLE') {
+        if (!txt) continue;
+        const p = Papa.parse(txt, { skipEmptyLines: true });
+        if (!p.data || p.data.length === 0) continue;
+        const headers = p.data[0].map((h, i) => (h === '' || h == null) ? `col_${i + 1}` : String(h));
+        const rows = p.data.slice(1);
+        const lifted = IO.liftStyles(rows, headers);
+        sheets.push({
+          name: blk.name,
+          rows: lifted.rows,
+          cols: lifted.cols,
+          styles: lifted.styles,
+          dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' }
+        });
+      } else if (blk.type === 'RELATIONS') {
+        if (!txt) continue;
+        const p = Papa.parse(txt, { skipEmptyLines: true });
+        if (!p.data || p.data.length < 2) continue;
+        const hdr = p.data[0].map(h => String(h).toLowerCase());
+        const idx = (k) => hdr.findIndex(h => h === k);
+        const iFs = idx('from_sheet'), iFc = idx('from_col'),
+              iTs = idx('to_sheet'),   iTc = idx('to_col'),
+              iCa = idx('cardinality'), iNm = idx('name');
+        if (iFs < 0 || iTs < 0) continue;
+        for (const row of p.data.slice(1)) {
+          if (!row || !row[iFs]) continue;
+          relations.push({
+            from_sheet: row[iFs] || '',
+            from_col: iFc >= 0 ? (row[iFc] || '') : '',
+            to_sheet: row[iTs] || '',
+            to_col: iTc >= 0 ? (row[iTc] || '') : '',
+            cardinality: (iCa >= 0 && row[iCa]) ? row[iCa] : '1-N',
+            name: iNm >= 0 ? (row[iNm] || '') : ''
+          });
+        }
+      } else if (blk.type === 'QUERY') {
+        /* KEY=VALUE format (sql=...) */
+        for (const line of blk.lines) {
+          const m = line.match(/^sql=(.+)$/);
+          if (m) lastQuery = m[1].trim();
+        }
+      }
+    }
+
+    return { sheets, relations, lastQuery };
+  },
+
+  /* Writer: combineer alle sheets/relations/query in 1 CSV via markers */
+  flattenMultiSheetCsv(sheets, relations, lastQuery, opts) {
+    opts = opts || {};
+    const withStyles = !!opts.withStyles;
+    const delim = (opts.dialect && opts.dialect.delimiter) || ',';
+    const nl = '\r\n';
+    let out = '';
+
+    /* Header-comment */
+    out += '# SheetHorse multi-tabel CSV-format' + nl;
+    out += '# Markers: # TABLE <naam>, # RELATIONS, # QUERY  (op eigen regel)' + nl;
+    out += '# Lege regels scheiden blokken. __style_* kolommen werken per TABLE-blok.' + nl + nl;
+
+    /* TABLE-blokken */
+    for (const s of sheets) {
+      out += '# TABLE ' + s.name + nl;
+      let cols = s.cols;
+      let rows = s.rows;
+      if (withStyles && s.styles && Object.keys(s.styles).length > 0) {
+        const flat = IO.flattenStyles(rows, cols, s.styles);
+        rows = flat.rows; cols = flat.cols;
+      }
+      out += Papa.unparse([cols].concat(rows), { delimiter: delim, newline: nl });
+      out += nl + nl;
+    }
+
+    /* RELATIONS-blok */
+    if (relations && relations.length > 0) {
+      out += '# RELATIONS' + nl;
+      const relCols = ['from_sheet','from_col','to_sheet','to_col','cardinality','name'];
+      const relRows = relations.map(r => [
+        r.from_sheet || '', r.from_col || '',
+        r.to_sheet || '', r.to_col || '',
+        r.cardinality || '', r.name || ''
+      ]);
+      out += Papa.unparse([relCols].concat(relRows), { delimiter: delim, newline: nl });
+      out += nl + nl;
+    }
+
+    /* QUERY-blok */
+    if (lastQuery) {
+      out += '# QUERY' + nl;
+      /* Bewaar query op één regel; vervang interne newlines door spatie */
+      const q = String(lastQuery).replace(/\r?\n/g, ' ');
+      out += 'sql=' + q + nl + nl;
+    }
+
+    return out;
+  },
+
   /* Verwijder __style_<prop>__<colname> kolommen uit headers,
      lift hun waarden naar { [rowIdx]: { [realColIdx]: {prop: value} } }.
      Onbekende style-props worden genegeerd. Niet-passende waardes idem. */
@@ -3031,7 +3229,7 @@ const IO = {
     const sheetsInfo = ExcelIO.sheetsInfo(wb);
     const hasObjects = ExcelIO.hasEmbeddedObjects(wb);
 
-    /* v0.4.0-Akhal-Teke: laad ALLE sheets (geen picker meer) */
+    /* v0.5.0-Knabstrupper: laad ALLE sheets (geen picker meer) */
     const sheets = [];
     let totalStyleCells = 0;
     for (let i = 0; i < sheetsInfo.length; i++) {
@@ -3702,7 +3900,7 @@ const UI = {
     this.els.btnRedo.addEventListener('click', () => this.redo());
   },
 
-  /* ====== Sheet-tabs strip (SheetHorse v0.4.0-Akhal-Teke) ====== */
+  /* ====== Sheet-tabs strip (SheetHorse v0.5.0-Knabstrupper) ====== */
   wireSheetTabs() {
     this.els.sheetTabs.addEventListener('click', (e) => {
       const close = e.target.closest('.close');
@@ -3880,7 +4078,7 @@ const UI = {
     nameSpan.addEventListener('keydown', keydown);
   },
 
-  /* ====== Relations panel (v0.4.0-Akhal-Teke) ====== */
+  /* ====== Relations panel (v0.5.0-Knabstrupper) ====== */
   renderRelationsPanel() {
     const el = this.els.relationsPanel;
     const sheets = DataStore.sheets || [];
@@ -4282,8 +4480,12 @@ const UI = {
       this.els.exportFormat.addEventListener('change', () => {
         const newFmt = this.els.exportFormat.value;
         let fn = this.els.exportFilename.value;
-        if (newFmt === 'xlsx') fn = fn.replace(/\.csv$/i, '.xlsx').replace(/\.xlsx$/i, '') + (fn.toLowerCase().endsWith('.xlsx') ? '' : '.xlsx');
-        if (newFmt === 'csv')  fn = fn.replace(/\.xlsx$/i, '.csv');
+        if (newFmt === 'xlsx') {
+          fn = fn.replace(/\.csv$/i, '.xlsx').replace(/\.xlsx$/i, '') + (fn.toLowerCase().endsWith('.xlsx') ? '' : '.xlsx');
+        } else if (newFmt === 'csv' || newFmt === 'csv-multi') {
+          fn = fn.replace(/\.xlsx$/i, '.csv');
+          if (!fn.toLowerCase().endsWith('.csv')) fn += '.csv';
+        }
         this.els.exportFilename.value = fn;
         this._syncExportBomVisibility(newFmt);
       });
@@ -4297,7 +4499,8 @@ const UI = {
 
   _syncExportBomVisibility(fmt) {
     if (this.els.exportBomLabel) {
-      this.els.exportBomLabel.style.display = (fmt === 'xlsx') ? 'none' : '';
+      /* BOM alleen relevant voor single-CSV */
+      this.els.exportBomLabel.style.display = (fmt === 'csv') ? '' : 'none';
     }
   },
 
@@ -4311,7 +4514,7 @@ const UI = {
     let filename = this.els.exportFilename.value.trim() || ExportService.defaultFilename('csv');
     /* Pas extensie aan op gekozen format */
     if (format === 'xlsx' && /\.csv$/i.test(filename)) filename = filename.replace(/\.csv$/i, '.xlsx');
-    if (format === 'csv'  && /\.xlsx$/i.test(filename)) filename = filename.replace(/\.xlsx$/i, '.csv');
+    if ((format === 'csv' || format === 'csv-multi') && /\.xlsx$/i.test(filename)) filename = filename.replace(/\.xlsx$/i, '.csv');
     const withStyles = this.els.exportWithStyles.checked && !this.els.exportWithStyles.disabled;
     const withBom = format === 'csv' && this.els.exportWithBom.checked;
     this._lastExportWithStyles = withStyles;
