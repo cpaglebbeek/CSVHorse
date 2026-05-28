@@ -6,21 +6,22 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 
 ### Skeleton → MVP
 
-- [ ] **Vendoring PapaParse** — download v5.4 minified, SHA verifiëren, inline in `index.html` (DD-MM nog te plannen) [bron: ARCHITECTURE §IO]
-- [ ] **Vendoring AlaSQL** — download v4.x minified, SHA verifiëren, inline (DD-MM) [bron: ARCHITECTURE §SQLEngine]
-- [ ] **DataStore implementatie** — rows/cols/styles/dialect model + observer-pattern
-- [ ] **IO-laag** — upload (File API + drag-drop), parse, format-detect, export
-- [ ] **CSV-roundtrip styles** — `__style_*`-kolommen liften bij import, flatten bij export, dialog-toggle (default AAN)
-- [ ] **Renderer met virtual scroll** — vaste rij-hoogte, DOM-recycling, 100k-rijen-stress-test
-- [ ] **EditController** — cell-edit-mode, paste, keyboard navigatie (Arrow/Tab/Enter)
-- [ ] **CommandHistory** — atomic edits, undo/redo (Ctrl+Z / Ctrl+Shift+Z), onbeperkt
-- [ ] **Toolbar — opmaak** — bold/italic/underline/strikethrough/kleur/background/font-size/alignment
-- [ ] **Toolbar — UI-filter** — kolom-dropdown + operator-dropdown + waarde-input → compileer naar SQL
-- [ ] **SQL-panel** — textarea + run-knop + result-binding aan Renderer
-- [ ] **AutosaveService** — throttled localStorage-snapshot + restore + schuif AAN/UIT + quota-bewaking
-- [ ] **Zoek/vervang dialog** — regex/case-toggle/scope (alles/kolom/selectie)/volgende-vorige
-- [ ] **Settings-modal** — dialect-keuze, autosave-toggle, export-opties, theme (toekomstig)
-- [ ] **Export-dialog** — `Met opmaak (default AAN)` checkbox, download als CSV-blob
+- [x] **Vendoring PapaParse** — v5.4.1, SHA `b8e870c5...` vastgepind in DEPENDENCIES.md (28-05, v0.0.2-Arabian)
+- [ ] **Vendoring AlaSQL** — download v4.x minified, SHA verifiëren, inline (v0.1.1-Akhal-Teke)
+- [x] **DataStore (basic)** — rows/cols/dialect/fileName model + observer-pattern (28-05, v0.0.2-Arabian; styles + Command-stack volgen later)
+- [x] **IO-laag (upload + parse + dialect-detect)** — File API + drag-drop + PapaParse.parse (28-05, v0.0.2-Arabian; export volgt v0.4.0-Shire)
+- [ ] **CSV-roundtrip styles** — `__style_*`-kolommen liften bij import, flatten bij export, dialog-toggle (default AAN) (v0.4.0-Shire)
+- [x] **Renderer (basis)** — HTML `<table>` met sticky thead, comfortabel tot ~5k rijen (28-05, v0.0.2-Arabian)
+- [ ] **Renderer met virtual scroll** — vaste rij-hoogte, DOM-recycling, 100k-rijen-stress-test (v0.3.0-Haflinger)
+- [ ] **EditController** — cell-edit-mode, paste, keyboard navigatie (Arrow/Tab/Enter) (v0.0.3-Andalusian)
+- [ ] **CommandHistory** — atomic edits, undo/redo (Ctrl+Z / Ctrl+Shift+Z), onbeperkt (v0.0.3-Andalusian)
+- [ ] **Toolbar — opmaak** — bold/italic/underline/strikethrough/kleur/background/font-size/alignment (v0.1.2-Appaloosa)
+- [ ] **Toolbar — UI-filter** — kolom-dropdown + operator-dropdown + waarde-input → compileer naar SQL (v0.1.0-Lipizzaner)
+- [ ] **SQL-panel** — textarea + run-knop + result-binding aan Renderer (v0.1.1-Akhal-Teke)
+- [ ] **AutosaveService** — throttled localStorage-snapshot + restore + schuif AAN/UIT + quota-bewaking (v0.2.0-Mustang)
+- [ ] **Zoek/vervang dialog** — regex/case-toggle/scope (alles/kolom/selectie)/volgende-vorige (v0.2.0-Mustang)
+- [ ] **Settings-modal** — dialect-keuze, autosave-toggle, export-opties, theme (toekomstig) (v0.2.0+)
+- [ ] **Export-dialog** — `Met opmaak (default AAN)` checkbox, download als CSV-blob (v0.4.0-Shire)
 
 ### Documentatie
 
@@ -45,3 +46,4 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 
 - [x] **2026-05-28** — Repo-skeleton aangemaakt via newp protocol (verifyrules + WhatIf akkoord agpl/vanilla/friesian/akkoord)
 - [x] **2026-05-28** — ArchiMate-viewer `architectuur/CSVHorse_viewer.html` aangemaakt (8 views, 74+5 elementen, 117 relaties, Visio-look, JSON/.archimate/SVG export, deterministisch); stijl gebaseerd op WerkDB telefonie-viewer
+- [x] **2026-05-28** — v0.0.2-Arabian opgeleverd: werkende CSV-import + render. PapaParse 5.4.1 vendored (`vendor/papaparse-5.4.1.min.js` + inline in `index.html`), DataStore + IO + Renderer modules in vanilla JS, drag-drop op hele pagina, dialect-auto-detect (komma/puntkomma/tab/pipe), sticky header, file-counter, toast-feedback, lege-state CTA. Comfortabel tot ~5k rijen (virtual scroll volgt v0.3.0-Haflinger)

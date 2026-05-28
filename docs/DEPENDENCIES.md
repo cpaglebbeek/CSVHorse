@@ -4,15 +4,35 @@ Component-afhankelijkheden + wijzigings-impact matrix. Bij wijziging in een comp
 
 ## Externe afhankelijkheden (vendored)
 
-| Lib | Versie (gepland) | Licentie | Rol | Bron |
-|-----|-----------------|----------|-----|------|
-| PapaParse | 5.4.x | MIT | CSV parse + unparse | https://www.papaparse.com/ |
-| AlaSQL | 4.x | MIT | SQL-engine over JS-arrays | https://github.com/AlaSQL/alasql |
+| Lib | Versie | Licentie | Rol | Bron | Status |
+|-----|--------|----------|-----|------|--------|
+| PapaParse | **5.4.1** | MIT | CSV parse + unparse | https://www.papaparse.com/ | ✓ vendored sinds v0.0.2-Arabian |
+| AlaSQL | 4.x | MIT | SQL-engine over JS-arrays | https://github.com/AlaSQL/alasql | ⏸ wacht op v0.1.1-Akhal-Teke |
+
+### PapaParse 5.4.1
+
+- **Bron-bestand:** `vendor/papaparse-5.4.1.min.js` (19.469 bytes)
+- **SHA-256:** `b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb`
+- **CDN-URL bij download:** https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js
+- **Inline opgenomen in:** `index.html` `<script>`-tag met versie + hash-comment
+
+**Verificatie-commando:**
+```bash
+shasum -a 256 vendor/papaparse-5.4.1.min.js
+# moet zijn: b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb
+```
 
 **Vendoring-strategie:**
-- Minified `.js`-bestanden inline opgenomen in `index.html` `<script>`-tags
-- Versie + SHA-hash gedocumenteerd hier
-- Update-procedure: download release, verify hash, vervang, regressietest, bump versie + codenaam
+- Minified `.js`-bestanden **inline** in `index.html` `<script>`-tags (single-file constraint, P2)
+- Bron in `vendor/` map blijft als traceerbare source-of-truth + hash-verificatie-bron
+- Update-procedure:
+  1. Download release van CDN
+  2. Vergelijk SHA-256 met published hash
+  3. Vervang `vendor/<naam>-<versie>.min.js`
+  4. Regenereer `index.html` (concat head + vendor + tail)
+  5. Update versie + SHA hier
+  6. Bump CSVHorse versie + codenaam in `version.json` (oranje bij design-impact, groen bij minor)
+  7. Regressietest manueel doorlopen
 
 **Geen externe runtime-deps verder** — geen npm, geen CDN, geen polyfills (browser-target = moderne evergreen).
 

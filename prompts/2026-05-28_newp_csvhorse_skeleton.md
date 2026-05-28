@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse MVP-implementatie (PapaParse + AlaSQL vendoring + DataStore + Renderer + toolbar)"
+resume: "verder met CSVHorse v0.0.3-Andalusian: EditController + CommandHistory (cell-edit + onbeperkte undo/redo)"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -131,3 +131,46 @@ Uitgevoerd na skeleton-push. Score ~85% conform voor skeleton-fase: alle concept
 - `architectuur/CSVHorse_viewer.html` (1392 regels)
 - `ARCHITECTURE.md` § 8 toegevoegd met verwijzing
 - `ACTIONS.md` afgerond-rij toegevoegd
+
+## v0.0.2-Arabian (derde deelopdracht: eerste werkende CSV-app)
+
+**Prompt:** *"ga door met v0.0.2-Arabian"* → na korte WhatIf met 3 defaults (PapaParse 5.4.1, drag-drop hele pagina, geen sample) bevestigd met *"ja, ga door"*.
+
+### Toegevoegd
+- `vendor/papaparse-5.4.1.min.js` (19.469 bytes, SHA-256 `b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb`)
+- `index.html` herschreven: van placeholder skeleton naar werkende app (563 regels, ~39KB, inclusief inline PapaParse + eigen 9KB JS)
+
+### Application-code (vanilla JS, geen framework)
+- **DataStore** — `{ rows, cols, dialect, fileName }` + observer-pattern (`on/notify`)
+- **IO** — `parseFile(file)` via `Papa.parse` met `skipEmptyLines`; eerste rij = headers; auto-detect delimiter via PapaParse meta
+- **Renderer** — eenvoudige HTML `<table>` met sticky `<thead>`, row-index-kolom (sticky left), DOM-recycling-vrij (volledige rerender)
+- **UI** — wiring file-input × 2 (header + lege-state CTA), Clear-knop, drag-drop overlay op `window`, toast voor feedback, lege-state CTA, stats-counter
+
+### UI-elementen
+- Header met `CSV`+`Horse`-accent, v0.0.2-Arabian badge, phase-badge (leeg/data geladen), file-name meta
+- Toolbar met enkele actieve knoppen (Upload, Wis) + disabled placeholder-knoppen voor Bewerken/Filter/SQL/Opmaak/Zoek-vervang/Exporteer (met `title=` die naar codename verwijst van toekomstige release)
+- Empty-state met 📊 + grote "Kies CSV-bestand"-CTA + hint over RFC 4180 + auto-detect dialects
+- Drop-overlay (full-screen dashed border + 📥 icon) bij `dragenter` met file
+- Toast (bottom-center) voor success/info/error feedback
+- Footer met merk + AGPL + iCt Horse link
+
+### Verificatie
+- **JS-syntaxcheck:** beide `<script>`-blokken groen via `new Function()` (PapaParse 19471 chars + eigen app 9036 chars)
+- **Browser-open:** `open index.html` — werkt op `file://`
+- **Test-CSV:** `/tmp/sample.csv` met 5 rijen × 4 kolommen voor manuele drag-drop-test
+- **Vendor-hash:** SHA-256 bevestigd, vastgepind in `DEPENDENCIES.md` + comment in `index.html`
+
+### Bekend werk-buiten-scope (niet in v0.0.2)
+- Cell-edit, paste, keyboard-nav (v0.0.3-Andalusian)
+- Undo/redo (v0.0.3-Andalusian)
+- UI-filter dropdown (v0.1.0-Lipizzaner)
+- SQL-panel + AlaSQL (v0.1.1-Akhal-Teke)
+- Opmaak per cel (v0.1.2-Appaloosa)
+- Autosave + zoek/vervang (v0.2.0-Mustang)
+- Virtual scrolling 100k+ (v0.3.0-Haflinger; huidig comfortabel ~5k rijen)
+- Export (v0.4.0-Shire)
+- Deploy icthorse.nl (v0.5.0-Hanoverian)
+
+### Nieuwe resume-trigger
+`status: open` blijft. Trigger gewijzigd van *"verder met CSVHorse MVP-implementatie..."* naar:
+**"verder met CSVHorse v0.0.3-Andalusian: EditController + CommandHistory (cell-edit + onbeperkte undo/redo)"**

@@ -2,18 +2,25 @@
 
 ## Huidige fase
 
-**v0.0.1-Friesian** — skeleton (geen werkende app, alleen repo-structuur + documentatie).
+**v0.0.2-Arabian** — werkende CSV import + render (geen edit/SQL/opmaak nog).
 
 | Aspect | Status |
 |--------|--------|
 | Repo lokaal | ✓ aangemaakt |
 | GitHub remote | ✓ public `cpaglebbeek/CSVHorse` |
-| Skeleton-bestanden | ✓ README, LICENSE, CLAUDE.md, ARCHITECTURE, DESIGN_TOKENS, PRINCIPLES, DEPENDENCIES, BUGLIST, version.json |
-| `index.html` placeholder | ✓ visuele skeleton met design-tokens |
-| MVP-implementatie | ⏸ wacht op vervolgsessie |
-| Vendored libs (PapaParse, AlaSQL) | ⏸ wacht op MVP-fase |
-| Deployment `icthorse.nl/CSVHorse/` | ⏸ wacht op MVP-fase |
-| `/sanitycheck` | (loopt vandaag direct na skeleton-push) |
+| Skeleton-bestanden | ✓ alle docs compleet (v0.0.1) |
+| Architectuur-viewer (`architectuur/CSVHorse_viewer.html`) | ✓ 8 ArchiMate-views, deterministisch |
+| **CSV-import + render (`index.html`)** | ✓ **werkend** (v0.0.2-Arabian) |
+| **PapaParse vendored** | ✓ v5.4.1 in `vendor/`, SHA256 vastgepind |
+| Cell-edit + undo/redo | ⏸ v0.0.3-Andalusian (volgende stap) |
+| UI-filter | ⏸ v0.1.0-Lipizzaner |
+| SQL-panel + AlaSQL | ⏸ v0.1.1-Akhal-Teke |
+| Opmaak (bold/italic/kleur/...) | ⏸ v0.1.2-Appaloosa |
+| Autosave + zoek/vervang | ⏸ v0.2.0-Mustang |
+| Virtual scrolling 100k+ | ⏸ v0.3.0-Haflinger |
+| Export met `__style_*` roundtrip | ⏸ v0.4.0-Shire |
+| Deployment `icthorse.nl/CSVHorse/` | ⏸ v0.5.0-Hanoverian |
+| `/sanitycheck` op skeleton | ✓ uitgevoerd 2026-05-28 |
 
 ## Volgende milestones
 
@@ -36,3 +43,5 @@
 | Datum | Versie | Wijziging |
 |-------|--------|----------|
 | 2026-05-28 | 0.0.1-Friesian | Repo-skeleton aangemaakt — newp protocol |
+| 2026-05-28 | 0.0.1-Friesian | ArchiMate-architectuurviewer toegevoegd (`architectuur/CSVHorse_viewer.html`) |
+| 2026-05-28 | 0.0.2-Arabian | Werkende CSV import + render: PapaParse 5.4.1 vendored, DataStore + IO + Renderer modules, drag-drop, dialect-auto-detect, sticky header, comfortabel tot ~5k rijen |

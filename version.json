@@ -1,7 +1,7 @@
 {
-  "version": "0.0.1",
-  "codename": "Friesian",
+  "version": "0.0.2",
+  "codename": "Arabian",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "skeleton"
+  "phase": "MVP-stap 1: CSV import + render"
 }
