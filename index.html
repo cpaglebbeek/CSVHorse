@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.2.0-Andalusian (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.3.0-Trakehner (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -684,7 +684,120 @@
     #toast.show { opacity:1; }
     #toast.error { border-left-color:var(--color-danger); }
 
-    /* Sheet-tabs (SheetHorse v0.2.0-Andalusian) */
+    /* Relations panel (SheetHorse v0.3.0-Trakehner) */
+    #relationsPanel {
+      flex:1 1 auto;
+      display:none;
+      flex-direction:column;
+      overflow:auto;
+      background:var(--color-bg);
+      padding:var(--space-4);
+      color:var(--color-text);
+    }
+    #relationsPanel.open { display:flex; }
+    #relationsPanel .rel-header {
+      display:flex; align-items:center; gap:var(--space-3);
+      margin-bottom:var(--space-3);
+      flex-wrap:wrap;
+    }
+    #relationsPanel .rel-header h2 {
+      margin:0; font-size:1.2rem; color:#9f7bff;
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    #relationsPanel .rel-header button {
+      font:inherit; color:var(--color-text);
+      background:transparent;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 12px;
+      cursor:pointer;
+    }
+    #relationsPanel .rel-header button:hover { border-color:#9f7bff; color:#9f7bff; }
+    #relationsPanel .rel-header .summary {
+      margin-left:auto;
+      font-family:var(--font-mono);
+      font-size:.85rem;
+      color:#9f7bff;
+    }
+    #relationsPanel table.rel-table {
+      border-collapse:separate; border-spacing:0;
+      background:var(--color-surface);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      width:100%;
+      font-size:.9rem;
+    }
+    #relationsPanel table.rel-table th {
+      background:var(--color-surface-2);
+      color:#9f7bff;
+      font-weight:600;
+      padding:var(--space-2) var(--space-3);
+      text-align:left;
+      border-bottom:1px solid var(--color-border);
+      font-size:.78rem; letter-spacing:.5px; text-transform:uppercase;
+    }
+    #relationsPanel table.rel-table td {
+      padding:var(--space-2) var(--space-3);
+      border-bottom:1px solid var(--color-border);
+      vertical-align:middle;
+    }
+    #relationsPanel table.rel-table tr:last-child td { border-bottom:none; }
+    #relationsPanel table.rel-table select,
+    #relationsPanel table.rel-table input[type="text"] {
+      font:inherit; color:var(--color-text);
+      background:var(--color-bg);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:5px 8px;
+      font-size:.85rem;
+      width:100%;
+      min-width:90px;
+    }
+    #relationsPanel table.rel-table select:focus,
+    #relationsPanel table.rel-table input:focus { outline:none; border-color:#9f7bff; }
+    #relationsPanel table.rel-table .arrow { color:#9f7bff; font-weight:700; text-align:center; width:32px; }
+    #relationsPanel table.rel-table .rm-btn {
+      font:inherit; color:var(--color-text-dim);
+      background:transparent;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:4px 8px; cursor:pointer; font-size:.85rem;
+    }
+    #relationsPanel table.rel-table .rm-btn:hover { color:var(--color-danger); border-color:var(--color-danger); }
+    #relationsPanel table.rel-table tr.add-row td {
+      background:rgba(159,123,255,0.06);
+      border-top:2px solid #9f7bff;
+    }
+    #relationsPanel .add-btn {
+      background:#9f7bff; color:#0a1a14;
+      border:none; border-radius:var(--radius-sm);
+      padding:6px 14px; cursor:pointer; font-weight:600;
+    }
+    #relationsPanel .add-btn:hover { background:#b69eff; }
+    #relationsPanel .empty-rel {
+      text-align:center; padding:var(--space-5);
+      color:var(--color-text-dim);
+    }
+    /* Speciale Relaties-tab in tab-strip */
+    .sheet-tabs .tab.relations-tab {
+      color:#9f7bff;
+      border-top-color:transparent;
+    }
+    .sheet-tabs .tab.relations-tab.active {
+      color:#b69eff;
+      border-top-color:#9f7bff;
+      background:var(--color-bg);
+    }
+    .sheet-tabs .tab.relations-tab .badge-count {
+      background:#9f7bff; color:#0a1a14;
+      font-size:.65rem;
+      padding:1px 6px;
+      border-radius:99px;
+      margin-left:4px;
+      font-weight:700;
+    }
+
+    /* Sheet-tabs (SheetHorse v0.3.0-Trakehner) */
     .sheet-tabs {
       flex:0 0 auto;
       display:flex;
@@ -760,7 +873,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.2.0-Andalusian</span>
+  <span class="badge">v0.3.0-Trakehner</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -950,6 +1063,9 @@
     <p class="hint">Na laden: klik op een cel om te selecteren · dubbelklik / Enter / F2 om te bewerken · Ctrl/Cmd+Z undo · ⏚ Filter voor kolom-filter · ≡ SQL voor vrije query.</p>
   </section>
   <div id="tableWrap" class="hidden" tabindex="0"></div>
+  <div id="relationsPanel" role="region" aria-label="Relaties tussen tabbladen">
+    <!-- Dynamisch gerendered via UI.renderRelationsPanel -->
+  </div>
 </main>
 
 <div class="sheet-tabs" id="sheetTabs" role="tablist" aria-label="Werkbladen">
@@ -981,7 +1097,7 @@
   <div class="modal">
     <h3 id="sheetPickerTitle">📑 Excel: meerdere tabbladen</h3>
     <div class="modal-body">
-      <div class="modal-hint">Dit Excel-bestand bevat <strong id="sheetPickerCount">N</strong> tabbladen. Kies welk tabblad je wil importeren — de rest wordt genegeerd (multi-sheet runtime volgt v0.2.0-Andalusian).</div>
+      <div class="modal-hint">Dit Excel-bestand bevat <strong id="sheetPickerCount">N</strong> tabbladen. Kies welk tabblad je wil importeren — de rest wordt genegeerd (multi-sheet runtime volgt v0.3.0-Trakehner).</div>
       <label>Tabblad:
         <select id="sheetPickerSelect"></select>
       </label>
@@ -1055,7 +1171,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.2.0-Andalusian (codenaam Andalusian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.3.0-Trakehner (codenaam Trakehner) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1385,7 +1501,7 @@ Expecting `+nr.join(", ")+", got '"+(this.terminals_[Le]||Le)+"'":Tn="Parse erro
 /* ============================================================
  * DataStore — single source of truth
  * ============================================================ */
-/* SheetHorse v0.2.0-Andalusian: DataStore is multi-sheet.
+/* SheetHorse v0.3.0-Trakehner: DataStore is multi-sheet.
    Top-level rows/cols/styles/dialect verwijzen naar actieve sheet (kopie).
    sheets[] bewaart alle sheets met per-sheet state-snapshot.
    Bij switchTo(): huidige state wordt naar sheets[currentIdx] gesnapshot,
@@ -1401,6 +1517,93 @@ const DataStore = {
                        _undoStack, _redoStack, _filterActive,
                        _selR, _selC, _searchQuery }] */
   activeIdx: -1,
+  /* v0.3.0-Trakehner: relaties tussen sheets (FK-tuples, alleen definitie) */
+  relations: [],  /* [{ id, from_sheet, from_col, to_sheet, to_col, cardinality, name }] */
+  _relIdSeq: 0,
+  viewMode: 'data', /* 'data' (active sheet) of 'relations' (FK-tabblad) */
+
+  /* === Relations management === */
+  addRelation(rel) {
+    const id = 'r' + (++this._relIdSeq);
+    this.relations.push({
+      id,
+      from_sheet: rel.from_sheet || '',
+      from_col: rel.from_col || '',
+      to_sheet: rel.to_sheet || '',
+      to_col: rel.to_col || '',
+      cardinality: rel.cardinality || '1-N',
+      name: rel.name || ''
+    });
+    this.notify('relations-changed');
+    return id;
+  },
+  updateRelation(id, partial) {
+    const r = this.relations.find(x => x.id === id);
+    if (!r) return false;
+    Object.assign(r, partial);
+    this.notify('relations-changed');
+    return true;
+  },
+  removeRelation(id) {
+    const idx = this.relations.findIndex(x => x.id === id);
+    if (idx < 0) return false;
+    this.relations.splice(idx, 1);
+    this.notify('relations-changed');
+    return true;
+  },
+  removeRelationsForSheet(sheetName) {
+    const before = this.relations.length;
+    this.relations = this.relations.filter(r => r.from_sheet !== sheetName && r.to_sheet !== sheetName);
+    const removed = before - this.relations.length;
+    if (removed > 0) this.notify('relations-changed');
+    return removed;
+  },
+  renameRelationsForSheet(oldName, newName) {
+    let touched = 0;
+    for (const r of this.relations) {
+      if (r.from_sheet === oldName) { r.from_sheet = newName; touched++; }
+      if (r.to_sheet   === oldName) { r.to_sheet   = newName; touched++; }
+    }
+    if (touched > 0) this.notify('relations-changed');
+    return touched;
+  },
+  clearRelations() {
+    if (this.relations.length === 0) return;
+    this.relations = [];
+    this._relIdSeq = 0;
+    this.notify('relations-changed');
+  },
+
+  /* Auto-detect FK's: <sheet>_id <-> sheet.id (case-insensitive) */
+  autoDetectRelations() {
+    const sheets = this.sheets;
+    const sheetByName = {};
+    sheets.forEach(s => { sheetByName[s.name.toLowerCase()] = s; });
+    const suggestions = [];
+    for (const s of sheets) {
+      for (const col of s.cols) {
+        const m = String(col || '').match(/^(.+)_id$/i);
+        if (!m) continue;
+        const base = m[1].toLowerCase();
+        /* Probeer exact match en plural-tolerant (orders_id ← orders) */
+        let target = sheetByName[base] || sheetByName[base + 's'] || sheetByName[base.replace(/s$/, '')];
+        if (!target || target === s) continue;
+        /* Target moet een 'id' kolom hebben */
+        const targetIdCol = target.cols.find(c => String(c).toLowerCase() === 'id');
+        if (!targetIdCol) continue;
+        /* Skip als bestaat al */
+        if (this.relations.some(r =>
+          r.from_sheet === s.name && r.from_col === col &&
+          r.to_sheet === target.name && r.to_col === targetIdCol)) continue;
+        suggestions.push({
+          from_sheet: s.name, from_col: col,
+          to_sheet: target.name, to_col: targetIdCol,
+          cardinality: 'N-1', name: ''
+        });
+      }
+    }
+    return suggestions;
+  },
 
   /* === Sheet management === */
   validateName(name, excludeIdx) {
@@ -1442,15 +1645,18 @@ const DataStore = {
 
   removeSheet(idx) {
     if (idx < 0 || idx >= this.sheets.length) return;
+    const removedName = this.sheets[idx].name;
     if (this.sheets.length === 1) {
       /* Minimum 1 sheet → niet verwijderen, alleen leegmaken */
       this.sheets[0].rows = []; this.sheets[0].cols = []; this.sheets[0].styles = {};
       this.sheets[0]._undoStack = []; this.sheets[0]._redoStack = [];
+      this.removeRelationsForSheet(removedName);
       this.activeIdx = -1;
       this.switchTo(0, { skipSave: true });
       return;
     }
     this.sheets.splice(idx, 1);
+    this.removeRelationsForSheet(removedName);
     let newIdx = this.activeIdx;
     if (idx <= this.activeIdx) newIdx = Math.max(0, this.activeIdx - 1);
     if (newIdx >= this.sheets.length) newIdx = this.sheets.length - 1;
@@ -1461,8 +1667,11 @@ const DataStore = {
   renameSheet(idx, newName) {
     if (idx < 0 || idx >= this.sheets.length) return false;
     const v = this.validateName(newName, idx);
-    if (v === this.sheets[idx].name) return false;
+    const oldName = this.sheets[idx].name;
+    if (v === oldName) return false;
     this.sheets[idx].name = v;
+    /* v0.3.0: relaties die refereren naar oldName → newName */
+    this.renameRelationsForSheet(oldName, v);
     if (idx === this.activeIdx) this.notify('sheet-renamed', { idx });
     else this.notify('sheets-changed');
     return v;
@@ -1514,9 +1723,19 @@ const DataStore = {
     this.fileName = fileName || '';
     this.sheets = [];
     this.activeIdx = -1;
+    this.relations = [];
+    this._relIdSeq = 0;
+    this.viewMode = 'data';
     /* Reset CommandHistory om vorige sheet-stacks weg te gooien */
     if (typeof CommandHistory !== 'undefined') { CommandHistory.undoStack.length = 0; CommandHistory.redoStack.length = 0; }
     if (Array.isArray(sheets) && sheets.length > 0) {
+      /* v0.3.0: detect "_relations"-sheet en lift naar DataStore.relations */
+      const relSheetIdx = sheets.findIndex(s => s.name === '_relations');
+      let relSheet = null;
+      if (relSheetIdx >= 0) {
+        relSheet = sheets[relSheetIdx];
+        sheets.splice(relSheetIdx, 1);
+      }
       sheets.forEach(s => this.addSheet({
         name: s.name || `Sheet${this.sheets.length + 1}`,
         rows: s.rows || [],
@@ -1524,6 +1743,21 @@ const DataStore = {
         styles: s.styles || {},
         dialect: s.dialect || dialect || {}
       }, false));
+      /* Lift relations uit _relations-sheet (header: from_sheet,from_col,to_sheet,to_col,cardinality,name) */
+      if (relSheet && Array.isArray(relSheet.rows)) {
+        const hdr = relSheet.cols || [];
+        const idx = (k) => hdr.findIndex(h => String(h).toLowerCase() === k);
+        const iFs = idx('from_sheet'), iFc = idx('from_col'), iTs = idx('to_sheet'), iTc = idx('to_col'), iCa = idx('cardinality'), iNm = idx('name');
+        for (const row of relSheet.rows) {
+          if (!row || iFs < 0 || iTs < 0) continue;
+          this.addRelation({
+            from_sheet: row[iFs] || '', from_col: iFc >= 0 ? row[iFc] : '',
+            to_sheet: row[iTs] || '', to_col: iTc >= 0 ? row[iTc] : '',
+            cardinality: iCa >= 0 ? (row[iCa] || '1-N') : '1-N',
+            name: iNm >= 0 ? (row[iNm] || '') : ''
+          });
+        }
+      }
       this.activeIdx = -1;
       this.switchTo(0, { skipSave: true });
     } else {
@@ -1547,6 +1781,7 @@ const DataStore = {
   clear() {
     this.rows = []; this.cols = []; this.styles = {}; this.fileName = '';
     this.sheets = []; this.activeIdx = -1;
+    this.relations = []; this._relIdSeq = 0; this.viewMode = 'data';
     this.notify('clear');
   },
 
@@ -2194,7 +2429,7 @@ const SearchReplace = {
 };
 
 /* ============================================================
- * ExcelIO — XLSX import + export (SheetHorse v0.2.0-Andalusian)
+ * ExcelIO — XLSX import + export (SheetHorse v0.3.0-Trakehner)
  * Wrapper rond xlsx-populate (window.XlsxPopulate)
  * ============================================================ */
 const ExcelIO = {
@@ -2489,8 +2724,10 @@ const ExportService = {
       let totalRows = src.rows.length;
       let totalStyleCells = withStyles ? this._countStyles(src.styles) : 0;
       let sheetSummary = '';
-      /* v0.2.0: multi-sheet export voor mode 'all' indien DataStore meerdere sheets heeft */
-      if (src.mode === 'all' && DataStore.sheets && DataStore.sheets.length > 1) {
+      /* v0.2.0: multi-sheet export voor mode 'all' indien DataStore meerdere sheets heeft.
+         v0.3.0: voeg _relations-sheet toe als er relaties gedefinieerd zijn. */
+      const hasRelations = DataStore.relations && DataStore.relations.length > 0;
+      if (src.mode === 'all' && DataStore.sheets && (DataStore.sheets.length > 1 || hasRelations)) {
         /* Sync huidige actieve sheet eerst (state-snapshot) */
         const curIdx = DataStore.activeIdx;
         if (curIdx >= 0) {
@@ -2504,9 +2741,18 @@ const ExportService = {
           rows: s.rows,
           styles: withStyles ? s.styles : {}
         }));
+        /* v0.3.0: _relations-sheet */
+        if (hasRelations) {
+          allSheets.push({
+            name: '_relations',
+            cols: ['from_sheet', 'from_col', 'to_sheet', 'to_col', 'cardinality', 'name'],
+            rows: DataStore.relations.map(r => [r.from_sheet, r.from_col, r.to_sheet, r.to_col, r.cardinality, r.name || '']),
+            styles: {}
+          });
+        }
         totalRows = allSheets.reduce((sum, s) => sum + s.rows.length, 0);
         if (withStyles) totalStyleCells = allSheets.reduce((sum, s) => sum + this._countStyles(s.styles), 0);
-        sheetSummary = ` · ${allSheets.length} werkbladen`;
+        sheetSummary = ` · ${allSheets.length} werkbladen${hasRelations ? ' (incl. _relations)' : ''}`;
         blob = await ExcelIO.writeMultiSheetWorkbook(allSheets);
       } else {
         blob = await ExcelIO.writeWorkbook(
@@ -2623,7 +2869,7 @@ const IO = {
     const sheetsInfo = ExcelIO.sheetsInfo(wb);
     const hasObjects = ExcelIO.hasEmbeddedObjects(wb);
 
-    /* v0.2.0-Andalusian: laad ALLE sheets (geen picker meer) */
+    /* v0.3.0-Trakehner: laad ALLE sheets (geen picker meer) */
     const sheets = [];
     let totalStyleCells = 0;
     for (let i = 0; i < sheetsInfo.length; i++) {
@@ -3163,6 +3409,7 @@ const UI = {
       btnNewCsvCancel:  document.getElementById('btnNewCsvCancel'),
       btnNewCsvConfirm: document.getElementById('btnNewCsvConfirm'),
       sheetTabs:        document.getElementById('sheetTabs'),
+      relationsPanel:   document.getElementById('relationsPanel'),
       csvImportModal:   document.getElementById('csvImportModal'),
       csvImportFilename:document.getElementById('csvImportFilename'),
       btnCsvImportCancel: document.getElementById('btnCsvImportCancel'),
@@ -3283,7 +3530,7 @@ const UI = {
     this.els.btnRedo.addEventListener('click', () => this.redo());
   },
 
-  /* ====== Sheet-tabs strip (SheetHorse v0.2.0-Andalusian) ====== */
+  /* ====== Sheet-tabs strip (SheetHorse v0.3.0-Trakehner) ====== */
   wireSheetTabs() {
     this.els.sheetTabs.addEventListener('click', (e) => {
       const close = e.target.closest('.close');
@@ -3294,12 +3541,29 @@ const UI = {
         return;
       }
       const tab = e.target.closest('.tab');
+      if (tab && tab.dataset.view === 'relations') {
+        /* v0.3.0: switch naar Relaties-view */
+        if (EditController.isEditing()) EditController.commit();
+        if (EditController.isEditingHeader()) EditController.commitColEdit();
+        DataStore.viewMode = 'relations';
+        DataStore.notify('view-mode-changed');
+        return;
+      }
       if (tab && tab.dataset.idx != null) {
         const idx = parseInt(tab.dataset.idx, 10);
-        if (!isNaN(idx) && idx !== DataStore.activeIdx) {
+        if (!isNaN(idx)) {
           if (EditController.isEditing()) EditController.commit();
           if (EditController.isEditingHeader()) EditController.commitColEdit();
-          DataStore.switchTo(idx);
+          /* Terug naar data-view als we in relations zaten */
+          const wasInRelations = DataStore.viewMode === 'relations';
+          DataStore.viewMode = 'data';
+          if (wasInRelations || idx !== DataStore.activeIdx) {
+            if (idx === DataStore.activeIdx) {
+              DataStore.notify('view-mode-changed');
+            } else {
+              DataStore.switchTo(idx);
+            }
+          }
         }
         return;
       }
@@ -3322,9 +3586,10 @@ const UI = {
       return;
     }
     el.style.display = '';
+    const isRelView = DataStore.viewMode === 'relations';
     DataStore.sheets.forEach((s, i) => {
       const tab = document.createElement('button');
-      tab.className = 'tab' + (i === DataStore.activeIdx ? ' active' : '');
+      tab.className = 'tab' + (!isRelView && i === DataStore.activeIdx ? ' active' : '');
       tab.dataset.idx = i;
       tab.title = `${s.name} — klik om te activeren · dubbelklik om naam te bewerken`;
       const name = document.createElement('span');
@@ -3341,6 +3606,23 @@ const UI = {
       }
       el.appendChild(tab);
     });
+    /* v0.3.0: speciale "🔗 Relaties"-tab */
+    const relTab = document.createElement('button');
+    relTab.className = 'tab relations-tab' + (isRelView ? ' active' : '');
+    relTab.dataset.view = 'relations';
+    relTab.title = 'Tabblad voor FK-relaties tussen werkbladen';
+    const relName = document.createElement('span');
+    relName.className = 'name';
+    relName.textContent = '🔗 Relaties';
+    relTab.appendChild(relName);
+    if (DataStore.relations && DataStore.relations.length > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'badge-count';
+      badge.textContent = DataStore.relations.length;
+      relTab.appendChild(badge);
+    }
+    el.appendChild(relTab);
+
     const add = document.createElement('button');
     add.className = 'add-tab';
     add.title = 'Nieuw werkblad toevoegen';
@@ -3408,6 +3690,200 @@ const UI = {
     };
     nameSpan.addEventListener('blur', commit);
     nameSpan.addEventListener('keydown', keydown);
+  },
+
+  /* ====== Relations panel (v0.3.0-Trakehner) ====== */
+  renderRelationsPanel() {
+    const el = this.els.relationsPanel;
+    const sheets = DataStore.sheets || [];
+    el.innerHTML = '';
+
+    /* Header */
+    const hdr = document.createElement('div');
+    hdr.className = 'rel-header';
+    const h2 = document.createElement('h2');
+    h2.innerHTML = '🔗 Relaties tussen tabbladen';
+    hdr.appendChild(h2);
+    const btnAutoDetect = document.createElement('button');
+    btnAutoDetect.type = 'button';
+    btnAutoDetect.textContent = '✨ Auto-detect FK\'s';
+    btnAutoDetect.title = 'Zoek <sheet>_id ← sheet.id patroon';
+    btnAutoDetect.addEventListener('click', () => this._autoDetectRelations());
+    hdr.appendChild(btnAutoDetect);
+    const btnClearAll = document.createElement('button');
+    btnClearAll.type = 'button';
+    btnClearAll.textContent = '🗑 Wis alle';
+    btnClearAll.addEventListener('click', () => {
+      if (DataStore.relations.length === 0) return;
+      if (!confirm(`Alle ${DataStore.relations.length} relaties wissen?`)) return;
+      DataStore.clearRelations();
+      this.showToast('Relaties gewist', 'info');
+    });
+    hdr.appendChild(btnClearAll);
+    const summary = document.createElement('span');
+    summary.className = 'summary';
+    summary.textContent = `${DataStore.relations.length} relatie${DataStore.relations.length === 1 ? '' : 's'}`;
+    hdr.appendChild(summary);
+    el.appendChild(hdr);
+
+    if (sheets.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-rel';
+      empty.innerHTML = '⚠ Geen werkbladen geladen — voeg eerst sheets toe om relaties te kunnen definiëren.';
+      el.appendChild(empty);
+      return;
+    }
+
+    const tbl = document.createElement('table');
+    tbl.className = 'rel-table';
+    /* Header-rij */
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    ['From sheet', 'From col', '→', 'To sheet', 'To col', 'Kardinaliteit', 'Naam (optioneel)', ''].forEach(label => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    tbl.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    /* Bestaande relaties */
+    for (const rel of DataStore.relations) {
+      const tr = this._buildRelRow(rel, sheets, false);
+      tbody.appendChild(tr);
+    }
+    /* Add-rij onderaan */
+    const addRow = this._buildRelRow(null, sheets, true);
+    tbody.appendChild(addRow);
+    tbl.appendChild(tbody);
+    el.appendChild(tbl);
+  },
+
+  _buildRelRow(rel, sheets, isAddRow) {
+    const tr = document.createElement('tr');
+    if (isAddRow) tr.className = 'add-row';
+
+    /* state voor add-row */
+    const state = rel ? { ...rel } : { from_sheet: '', from_col: '', to_sheet: '', to_col: '', cardinality: '1-N', name: '' };
+
+    const mkSheetSelect = (which) => {
+      const sel = document.createElement('select');
+      sel.innerHTML = '<option value="">--werkblad--</option>' +
+        sheets.map(s => `<option value="${this._escAttr(s.name)}"${state[which] === s.name ? ' selected' : ''}>${this._escHtml(s.name)}</option>`).join('');
+      sel.addEventListener('change', (e) => {
+        state[which] = e.target.value;
+        const colWhich = which === 'from_sheet' ? 'from_col' : 'to_col';
+        state[colWhich] = '';
+        if (!isAddRow && rel) DataStore.updateRelation(rel.id, { [which]: state[which], [colWhich]: '' });
+      });
+      return sel;
+    };
+    const mkColSelect = (which) => {
+      const sel = document.createElement('select');
+      const refSheet = which === 'from_col' ? state.from_sheet : state.to_sheet;
+      const sheet = sheets.find(s => s.name === refSheet);
+      const cols = sheet ? sheet.cols : [];
+      sel.innerHTML = '<option value="">--kolom--</option>' +
+        cols.map(c => `<option value="${this._escAttr(c)}"${state[which] === c ? ' selected' : ''}>${this._escHtml(c)}</option>`).join('');
+      sel.addEventListener('change', (e) => {
+        state[which] = e.target.value;
+        if (!isAddRow && rel) DataStore.updateRelation(rel.id, { [which]: e.target.value });
+      });
+      return sel;
+    };
+    const mkCardSelect = () => {
+      const sel = document.createElement('select');
+      ['1-1', '1-N', 'N-1', 'N-N'].forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        if (state.cardinality === c) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', (e) => {
+        state.cardinality = e.target.value;
+        if (!isAddRow && rel) DataStore.updateRelation(rel.id, { cardinality: e.target.value });
+      });
+      return sel;
+    };
+    const mkNameInput = () => {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.placeholder = '(optioneel)';
+      inp.value = state.name || '';
+      inp.addEventListener('change', (e) => {
+        state.name = e.target.value;
+        if (!isAddRow && rel) DataStore.updateRelation(rel.id, { name: e.target.value });
+      });
+      return inp;
+    };
+
+    const tdFs = document.createElement('td'); tdFs.appendChild(mkSheetSelect('from_sheet')); tr.appendChild(tdFs);
+    const tdFc = document.createElement('td'); tdFc.appendChild(mkColSelect('from_col')); tr.appendChild(tdFc);
+    const tdAr = document.createElement('td'); tdAr.className = 'arrow'; tdAr.textContent = '→'; tr.appendChild(tdAr);
+    const tdTs = document.createElement('td'); tdTs.appendChild(mkSheetSelect('to_sheet')); tr.appendChild(tdTs);
+    const tdTc = document.createElement('td'); tdTc.appendChild(mkColSelect('to_col')); tr.appendChild(tdTc);
+    const tdCa = document.createElement('td'); tdCa.appendChild(mkCardSelect()); tr.appendChild(tdCa);
+    const tdNm = document.createElement('td'); tdNm.appendChild(mkNameInput()); tr.appendChild(tdNm);
+    const tdAc = document.createElement('td');
+    if (isAddRow) {
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'add-btn';
+      addBtn.textContent = '+ Voeg toe';
+      addBtn.addEventListener('click', () => {
+        if (!state.from_sheet || !state.from_col || !state.to_sheet || !state.to_col) {
+          this.showToast('Vul alle 4 kolommen in (from-sheet/col + to-sheet/col)', 'warn');
+          return;
+        }
+        DataStore.addRelation(state);
+        this.showToast(`Relatie toegevoegd: ${state.from_sheet}.${state.from_col} → ${state.to_sheet}.${state.to_col}`, 'ok');
+      });
+      tdAc.appendChild(addBtn);
+    } else {
+      const rmBtn = document.createElement('button');
+      rmBtn.type = 'button';
+      rmBtn.className = 'rm-btn';
+      rmBtn.textContent = '🗑';
+      rmBtn.title = 'Verwijder relatie';
+      rmBtn.addEventListener('click', () => {
+        DataStore.removeRelation(rel.id);
+      });
+      tdAc.appendChild(rmBtn);
+    }
+    tr.appendChild(tdAc);
+    return tr;
+  },
+
+  _autoDetectRelations() {
+    const sugg = DataStore.autoDetectRelations();
+    if (sugg.length === 0) {
+      this.showToast('Geen nieuwe FK-suggesties gevonden (gezocht: <sheet>_id ← sheet.id)', 'info');
+      return;
+    }
+    sugg.forEach(s => DataStore.addRelation(s));
+    this.showToast(`${sugg.length} FK${sugg.length === 1 ? '' : "'s"} toegevoegd via auto-detect`, 'ok');
+  },
+
+  _showRelationsView() {
+    this.els.tableWrap.classList.add('hidden');
+    this.els.relationsPanel.classList.add('open');
+    /* Sluit overige paneel-stencils */
+    if (this.els.filterPanel) this.els.filterPanel.classList.remove('open');
+    if (this.els.sqlPanel) this.els.sqlPanel.classList.remove('open');
+    if (this.els.opmaakPanel) this.els.opmaakPanel.classList.remove('open');
+    if (this.els.searchPanel) this.els.searchPanel.classList.remove('open');
+    this.renderRelationsPanel();
+    this.renderSheetTabs();
+    this.els.phaseBadge.textContent = 'relaties';
+    this.els.phaseBadge.classList.remove('filter-on', 'sql-on');
+  },
+
+  _showDataView() {
+    this.els.relationsPanel.classList.remove('open');
+    this.els.tableWrap.classList.remove('hidden');
+    this.renderSheetTabs();
+    this.refreshPhaseBadge();
   },
 
   _restoreActiveSheetState() {
@@ -4493,6 +4969,7 @@ const UI = {
       this.els.btnFormat.classList.remove('active');
       SearchReplace.clear();
       this.renderSheetTabs();
+      this.els.relationsPanel.classList.remove('open');
       this.els.stats.textContent = 'geen data';
       this.els.phaseBadge.textContent = 'leeg';
       this.els.phaseBadge.classList.remove('filter-on', 'sql-on');
@@ -4511,10 +4988,25 @@ const UI = {
     if (kind === 'sheets-changed' || kind === 'sheet-renamed') {
       this.renderSheetTabs();
       this.updateStats();
+      if (DataStore.viewMode === 'relations') this.renderRelationsPanel();
+      return;
+    }
+    if (kind === 'relations-changed') {
+      this.renderSheetTabs();
+      if (DataStore.viewMode === 'relations') this.renderRelationsPanel();
+      this.updateStats();
+      return;
+    }
+    if (kind === 'view-mode-changed') {
+      if (DataStore.viewMode === 'relations') this._showRelationsView();
+      else this._showDataView();
+      this.updateStats();
       return;
     }
     if (kind === 'sheet-switch') {
-      /* Re-render volledig + restore per-sheet state */
+      /* Re-render volledig + restore per-sheet state. Auto-switch naar data-view. */
+      DataStore.viewMode = 'data';
+      this.els.relationsPanel.classList.remove('open');
       this._restoreActiveSheetState();
       this.renderSheetTabs();
       this.els.emptyState.style.display = 'none';
