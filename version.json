@@ -2,9 +2,9 @@
   "product": "SheetHorse",
   "branch": "sheethorse",
   "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch)",
-  "version": "0.1.0",
+  "version": "0.1.0.1",
   "codename": "Lipizzaner",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "Excel (.xlsx) import + export met opmaak-mapping (xlsx-populate 1.21.0 vendored ~642KB); multi-sheet via sheet-picker dialog bij import; embedded-objects detect-only; native Excel cell-styles bij export"
+  "phase": "v0.1.0 Excel + cherry-pick CSVHorse v0.2.0.3 header-edit (aanpasbare kolomnamen via dubbelklik op th, SetColNameCommand undo-baar)"
 }
