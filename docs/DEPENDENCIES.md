@@ -9,6 +9,23 @@ Component-afhankelijkheden + wijzigings-impact matrix. Bij wijziging in een comp
 | PapaParse | **5.4.1** | MIT | CSV parse + unparse | https://www.papaparse.com/ | ✓ vendored sinds v0.0.2-Arabian |
 | AlaSQL | **4.17.3** | MIT | SQL-engine over JS-arrays | https://github.com/AlaSQL/alasql | ✓ vendored sinds v0.1.1-Akhal-Teke |
 
+### xlsx-populate 1.21.0 (SheetHorse-only)
+
+- **Bron-bestand:** `vendor/xlsx-populate-1.21.0.min.js` (642.319 bytes)
+- **SHA-256:** `33aa41e75cffc90385888e3541526efd1bc30846f84b85f875e9ced122c14b86`
+- **CDN-URL bij download:** https://cdn.jsdelivr.net/npm/xlsx-populate@1.21.0/browser/xlsx-populate.min.js
+- **Inline opgenomen in:** `index.html` als 3e `<script>`-blok (tussen AlaSQL en app-code)
+- **Gebruikt voor:** SheetHorse XLSX import/export met native cell-styles (bold/italic/underline/color/fill/font-size/align) — vanaf v0.1.0-Lipizzaner
+- **API:** `XlsxPopulate.fromBlankAsync()`, `XlsxPopulate.fromDataAsync(arrayBuffer)`, `wb.sheet(i).cell('A1').value().style({...})`, `wb.outputAsync('blob')`
+
+**Verificatie:**
+```bash
+shasum -a 256 vendor/xlsx-populate-1.21.0.min.js
+# moet zijn: 33aa41e75cffc90385888e3541526efd1bc30846f84b85f875e9ced122c14b86
+```
+
+**Bundle-impact (SheetHorse):** ~640KB minified — substantieel. Totale bundle SheetHorse: ~1.3MB (PapaParse 19KB + AlaSQL 500KB + xlsx-populate 640KB + eigen app 100KB). Acceptabel voor SheetHorse (full variant); niet in CSVHorse-light (main branch) opgenomen om bundle daar slank te houden.
+
 ### AlaSQL 4.17.3
 
 - **Bron-bestand:** `vendor/alasql-4.17.3.min.js` (511.831 bytes)
