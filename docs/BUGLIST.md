@@ -8,6 +8,26 @@ _Geen._
 
 ## Opgeloste bugs
 
+### B-003 — Opmaak verdwijnt bij re-import na export (groen)
+
+**Datum:** 2026-05-28
+**Versie:** v0.1.4-Trakehner (manifestatie; geen code-bug)
+**Symptoom:** Na opmaak + export + heropen-import in browser: opmaak werd niet getoond, ondanks dat `__style_*` kolommen wel in CSV stonden.
+
+**RCA (3 niveaus):**
+- **Functioneel:** gebruiker zag oude UI/JS-code zonder roundtrip-functionaliteit
+- **Technisch:** **browser-cache** — vorige sessie had v0.1.3 (zonder lift) geladen, browser cached `index.html` + bijbehorende JS. Pagina opnieuw openen via normale F5 trekt cache aan zonder een revalidate van de inline scripts.
+- **Architectonisch:** zelfde categorie als B-001 (CDN-cache, server-side). Nu client-side: Pages levert juiste versie, browser leest oude versie uit eigen cache.
+
+**Fix:** geen code-wijziging nodig. **Hard-refresh (`Ctrl/Cmd+Shift+R`)** lost het op. Verifieerd door gebruiker: "hard refresh gedaan, alles werkt".
+
+**Preventie:**
+- Bij testen van een net-gedeployde nieuwe versie: altijd **hard-refresh** doen, niet alleen F5
+- Voor publieke deploy (v0.5.0-Hanoverian → `icthorse.nl`) overwegen: `<meta http-equiv="cache-control" content="no-cache, must-revalidate">` of versie-hash in `<script>` src (niet relevant nu, want single-file)
+- Diagnose-pad nu vast: `[CSVHorse import]` + `[CSVHorse load]` console.log + toast `opmaak hersteld: N cellen` — gebruiker kan direct in console zien wat er gelift is
+
+**Patroon-ID:** `DEPLOY-CACHE-002` — toegevoegd onder "Terugkerende patronen".
+
 ### B-002 — SQL "table does not exist: data" (groen)
 
 **Datum:** 2026-05-28
@@ -72,6 +92,7 @@ Te vullen tijdens MVP-implementatie en daarna. Initiële verwachte categorieën 
 | UNDO-001 | History | Stack-explosie bij paste van groot blok | Paste = 1 batch-command, geen N losse cell-edits |
 | STORE-001 | Autosave | localStorage quota-exceeded bij groot dataset | Quota-check vóór write, schuif uitschakelen + toast bij overflow |
 | DEPLOY-CDN-001 | Deploy | jsDelivr CDN cached `@main` tot 7 dagen → gebruiker ziet oude versie | Tijdens active development = **GitHub Pages** als primaire preview-URL; jsDelivr alleen voor stable releases met commit-hash of versie-tag |
+| DEPLOY-CACHE-002 | Deploy/Client | Browser cached `index.html` → user ziet oude JS-versie ondanks Pages-deploy van nieuwe | Bij elk feature-test: **hard-refresh** (Ctrl/Cmd+Shift+R) i.p.v. F5. Voor publieke deploy: cache-control headers (nog niet nodig in dev-fase) |
 
 ## Globale referentie
 
