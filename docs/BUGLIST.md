@@ -8,6 +8,37 @@ _Geen._
 
 ## Opgeloste bugs
 
+### B-008 — Nieuw werkblad start altijd als 1×1, geen schema-keuze (geel feature-gap)
+
+**Datum:** 2026-05-28
+**Versie:** v0.6.0-Hanoverian
+**Symptoom:** Klik op "+ Nieuw werkblad" maakt direct een 1-rij × 1-kolom sheet. Voor een serieuze multi-tabel workflow moet de gebruiker meteen het initiële schema kunnen kiezen.
+
+**Fix:** `_addBlankSheet` toont nu dezelfde dialog als 🆕 Nieuw (`newCsvModal`), maar in `_blankSheetMode = true`. Voorgevuld 3×5. `confirmNewCsv` dispatcht op het flag: blank-mode = `DataStore.addSheet({rows, cols, ...}, true)`; vervang-mode = bestaande replace-pad.
+
+### B-007 — Geen feedback bij multi-tabel CSV detect (geel)
+
+**Datum:** 2026-05-28
+**Versie:** v0.6.0-Hanoverian
+**Symptoom:** Bij import van multi-tabel CSV met markers krijgt de gebruiker geen indicatie of detect aansloeg of niet — toast meldt alleen "geladen: N rijen × M kolommen" voor sheets[0].
+
+**Fix:** `IO.parseFile` logt nu `[SheetHorse import] file=X size=Y multi-tabel-markers detected=true/false` + bij positief: aantal tabellen, relaties, query-status, gelifte style-cellen. `handleFile` toast meldt voor `csv-multi`: `· multi-tabel CSV: N tabs + M relaties + 1 query`.
+
+### B-006 — Voorbeeldbestand `multi-table-example.csv` had verkeerd style-schema (geel)
+
+**Datum:** 2026-05-28
+**Versie:** v0.6.0-Hanoverian
+**Symptoom:** Bij import van het voorbeeldbestand bleven `__style_naam`, `__style_vip` etc. als data-kolommen zichtbaar in plaats van als opmaak op de echte kolommen gelift te worden.
+
+**RCA (3 niveaus):**
+- **Functioneel:** voorbeeld toont format dat het zelf niet implementeert.
+- **Technisch:** voorbeeld gebruikte verzonnen compact-schema `__style_<colname>` met inline KV-pairs `b=1;c=#ff0000`. Werkelijke `liftStyles`-regex eist `__style_<prop>__<colname>` (twee underscores tussen prop en colnaam) — één kolom per `(prop, col)`-combinatie.
+- **Architectonisch:** format-contract-mismatch tussen documentatie/voorbeeld en parser. Geen test die voorbeeld-files round-tript.
+
+**Fix:** voorbeeldbestand herschreven met echt schema. Voor klanten 4 style-cols (`__style_bold__naam`, `__style_bold__vip`, `__style_color__vip`, `__style_background__vip`); producten 3; bestellingen 2. README al klopt over format-spec.
+
+**Preventie:** patroon `FORMAT-CONTRACT-001` uitgebreid: bij elk publiek voorbeeldbestand een round-trip test draaien tegen de eigen parser/writer vóór publicatie.
+
 ### B-005 — Handmatig relatie aanmaken werkt niet: col-dropdown blijft leeg (geel)
 
 **Datum:** 2026-05-28
@@ -133,6 +164,7 @@ Te vullen tijdens MVP-implementatie en daarna. Initiële verwachte categorieën 
 | DEPLOY-CACHE-002 | Deploy/Client | Browser cached `index.html` → user ziet oude JS-versie ondanks Pages-deploy van nieuwe | Bij elk feature-test: **hard-refresh** (Ctrl/Cmd+Shift+R) i.p.v. F5. Voor publieke deploy: cache-control headers (nog niet nodig in dev-fase) |
 | FORMAT-CONTRACT-001 | Parse | Header-naming-mismatch tussen publicatie (`from_table`) en parser (`from_sheet`) → blok stil overgeslagen | Mensgerichte CSV/JSON-formats: lijst van geaccepteerde header-synoniemen vooraf vastleggen + testbestand met beide vormen; nooit `continue` zonder `console.warn` bij onbekende headers |
 | UI-STATE-001 | UI | Add-row dropdowns afhankelijk van eerder gekozen dropdown her-renderen niet bij sheet-change → input feitelijk dood | Voor transiente UI-state een lokale rebuild-pad bewaren (td-references in een map); observer-notifies dekken alleen committed DataStore-state, niet pre-commit form-state |
+| ROUNDTRIP-EXAMPLE-001 | Docs | Publiek voorbeeldbestand gebruikt format dat eigen parser niet implementeert | Bij elk voorbeeld in `docs/examples/`: import → export → diff-check vóór publicatie; format-spec in README moet 1-op-1 met parser-regex matchen |
 
 ## Globale referentie
 

@@ -2,9 +2,9 @@
   "product": "SheetHorse",
   "branch": "sheethorse",
   "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch) — incl. cherry-pick v0.2.0.3 header-edit",
-  "version": "0.5.0.1",
-  "codename": "Knabstrupper",
+  "version": "0.6.0",
+  "codename": "Hanoverian",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "v0.5.0.1 bugfix-release (geel × 2): B-004 parser-schema-alias (from_table/to_table naast from_sheet/to_sheet in # RELATIONS-blok) + B-005 add-row stale-closure (col-dropdown her-renderd nu live bij sheet-keuze in Relaties-tab). v0.5.0 feature-scope ongewijzigd: CSV-met-metadata format met marker-syntax, style-roundtrip per tabel, auto-detect, 3 export-formats."
+  "phase": "v0.6.0-Hanoverian (oranje feature-bump): combinatie van Release A (geel bugfix v0.5.0.2-eq) + Release B (oranje features). A: B-006 voorbeeldbestand corrigeren naar echt __style_<prop>__<colname> schema, B-007 diagnostiek bij multi-tabel detect (console.log + toast), B-008 blank-sheet-dialog met #kolommen × #rijen voorgevuld 3×5. B: F-001 rij-CRUD met InsertRowCommand/RemoveRowCommand inclusief style-shift, F-002 kolom-CRUD met InsertColCommand/RemoveColCommand inclusief style-shift, F-003 SQLBuilder multi-tabel — FROM-dropdown + JOIN-rij-builder met type INNER/LEFT/RIGHT + auto-suggest ON-clauses uit DataStore.relations. SELECT/WHERE/GROUP BY pakken nu kolommen uit alle joined sheets."
 }

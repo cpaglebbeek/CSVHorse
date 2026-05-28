@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.5.0.1-Knabstrupper (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.6.0-Hanoverian (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -899,7 +899,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.5.0.1-Knabstrupper</span>
+  <span class="badge">v0.6.0-Hanoverian</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -916,6 +916,12 @@
   <button id="btnEdit" title="Bewerk geselecteerde cel (dubbelklik / Enter / F2)" disabled>✎ Bewerken</button>
   <button id="btnUndo" title="Ongedaan maken (Ctrl/Cmd+Z)" disabled>⤺ Undo</button>
   <button id="btnRedo" title="Opnieuw (Ctrl/Cmd+Shift+Z of Ctrl/Cmd+Y)" disabled>⤻ Redo</button>
+  <span class="sep"></span>
+  <!-- v0.6.0-Hanoverian: rij/kolom-CRUD knoppen (F-001 + F-002) -->
+  <button id="btnAddRow" title="Voeg rij toe (onder selectie, of onderaan)" disabled>＋ Rij</button>
+  <button id="btnDelRow" title="Verwijder geselecteerde rij" disabled>－ Rij</button>
+  <button id="btnAddCol" title="Voeg kolom toe (rechts van selectie, of achteraan)" disabled>＋ Kolom</button>
+  <button id="btnDelCol" title="Verwijder geselecteerde kolom" disabled>－ Kolom</button>
   <span class="sep"></span>
   <button id="btnFilter" title="UI-filter (kolom -> operator -> waarde)" disabled>⏚ Filter</button>
   <button id="btnSql" title="SQL-panel (AlaSQL: SELECT/WHERE/GROUP BY/ORDER BY/LIMIT/aggregates)" disabled>≡ SQL</button>
@@ -1019,6 +1025,15 @@
     </div>
   </div>
   <div class="sql-builder" id="sqlBuilder" role="region" aria-label="SQL builder">
+    <!-- v0.6.0-Hanoverian F-003: multi-tabel FROM + JOIN-rijen -->
+    <div class="builder-row">
+      <span class="label">FROM</span>
+      <div class="col-stack">
+        <select id="fromSheet" title="Eerste tabel in de query"></select>
+        <div id="joinRows" style="margin-top:6px;"></div>
+        <button type="button" class="add-btn" id="btnAddJoin">+ Voeg JOIN toe</button>
+      </div>
+    </div>
     <div class="builder-row">
       <span class="label">SELECT</span>
       <div class="col-stack">
@@ -1198,7 +1213,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.5.0.1-Knabstrupper (codenaam Knabstrupper) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.6.0-Hanoverian (codenaam Hanoverian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1997,6 +2012,9 @@ const SQLBuilder = {
   AGGS: ['', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX'],
 
   state: {
+    /* v0.6.0-Hanoverian F-003: multi-tabel FROM + JOIN */
+    fromSheet: '',          /* sheet-naam (eerste tabel) */
+    joins: [],              /* [{ type, sheet, leftCol, rightCol }] — type=INNER/LEFT/RIGHT */
     selectMode: 'all',      /* 'all' | 'cols' */
     selectCols: [],         /* [{ col, agg }] */
     where: { logic: 'AND', conditions: [] },  /* [{ col, op, val }] */
@@ -2007,6 +2025,8 @@ const SQLBuilder = {
 
   reset() {
     this.state = {
+      fromSheet: '',
+      joins: [],
       selectMode: 'all',
       selectCols: [],
       where: { logic: 'AND', conditions: [] },
@@ -2026,12 +2046,19 @@ const SQLBuilder = {
         return `[${sc.col}]`;
       }).join(', ');
     }
-    /* v0.4.0: gebruik actieve sheet-naam (of fallback 'data') als FROM */
+    /* v0.6.0-Hanoverian F-003: multi-tabel FROM + JOIN */
     const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
     const activeSheet = DataStore.sheets[DataStore.activeIdx];
-    const fromName = (activeSheet && !activeSheet.isQueryResult) ? activeSheet.name
-                   : (sheets[0] ? sheets[0].name : 'data');
+    const fromName = s.fromSheet
+      || (activeSheet && !activeSheet.isQueryResult ? activeSheet.name : null)
+      || (sheets[0] ? sheets[0].name : 'data');
     let sql = `SELECT ${sel} FROM [${fromName}]`;
+    /* JOIN-clauses */
+    for (const j of s.joins) {
+      if (!j.sheet || !j.leftCol || !j.rightCol) continue;
+      const jType = (j.type || 'INNER').toUpperCase();
+      sql += ` ${jType} JOIN [${j.sheet}] ON [${fromName}].[${j.leftCol}] = [${j.sheet}].[${j.rightCol}]`;
+    }
 
     /* WHERE */
     const conds = s.where.conditions
@@ -2252,6 +2279,148 @@ function SetColNameCommand(c, oldVal, newVal) {
   return { type:'colname', r:null, c, oldVal, newVal,
     apply()  { DataStore.cols[c] = newVal; DataStore.notify('cols', { c }); },
     revert() { DataStore.cols[c] = oldVal; DataStore.notify('cols', { c }); } };
+}
+
+/* v0.6.0-Hanoverian: Rij/kolom-CRUD commands (F-001 + F-002). */
+function InsertRowCommand(rIdx, rowData) {
+  return { type:'insertRow', r:rIdx, c:null, rowData,
+    apply() {
+      DataStore.rows.splice(rIdx, 0, rowData.slice());
+      /* Schuif styles op (alleen voor rijen >= rIdx) */
+      const newStyles = {};
+      for (const k in DataStore.styles) {
+        const ki = parseInt(k, 10);
+        newStyles[ki >= rIdx ? ki + 1 : ki] = DataStore.styles[k];
+      }
+      DataStore.styles = newStyles;
+      DataStore.notify('rows', { r: rIdx });
+    },
+    revert() {
+      DataStore.rows.splice(rIdx, 1);
+      const newStyles = {};
+      for (const k in DataStore.styles) {
+        const ki = parseInt(k, 10);
+        if (ki === rIdx) continue;
+        newStyles[ki > rIdx ? ki - 1 : ki] = DataStore.styles[k];
+      }
+      DataStore.styles = newStyles;
+      DataStore.notify('rows', { r: rIdx });
+    } };
+}
+
+function RemoveRowCommand(rIdx) {
+  const savedRow = DataStore.rows[rIdx] ? DataStore.rows[rIdx].slice() : [];
+  const savedStyle = DataStore.styles[rIdx] ? JSON.parse(JSON.stringify(DataStore.styles[rIdx])) : null;
+  return { type:'removeRow', r:rIdx, c:null, savedRow, savedStyle,
+    apply() {
+      DataStore.rows.splice(rIdx, 1);
+      const newStyles = {};
+      for (const k in DataStore.styles) {
+        const ki = parseInt(k, 10);
+        if (ki === rIdx) continue;
+        newStyles[ki > rIdx ? ki - 1 : ki] = DataStore.styles[k];
+      }
+      DataStore.styles = newStyles;
+      DataStore.notify('rows', { r: rIdx });
+    },
+    revert() {
+      DataStore.rows.splice(rIdx, 0, savedRow.slice());
+      const newStyles = {};
+      for (const k in DataStore.styles) {
+        const ki = parseInt(k, 10);
+        newStyles[ki >= rIdx ? ki + 1 : ki] = DataStore.styles[k];
+      }
+      if (savedStyle) newStyles[rIdx] = JSON.parse(JSON.stringify(savedStyle));
+      DataStore.styles = newStyles;
+      DataStore.notify('rows', { r: rIdx });
+    } };
+}
+
+function InsertColCommand(cIdx, colName) {
+  return { type:'insertCol', r:null, c:cIdx, colName,
+    apply() {
+      DataStore.cols.splice(cIdx, 0, colName);
+      for (let r = 0; r < DataStore.rows.length; r++) {
+        DataStore.rows[r].splice(cIdx, 0, '');
+      }
+      /* Schuif styles op (alleen kolommen >= cIdx) */
+      for (const rk in DataStore.styles) {
+        const rowSt = DataStore.styles[rk];
+        const newRow = {};
+        for (const ck in rowSt) {
+          const ci = parseInt(ck, 10);
+          newRow[ci >= cIdx ? ci + 1 : ci] = rowSt[ck];
+        }
+        DataStore.styles[rk] = newRow;
+      }
+      DataStore.notify('cols', { c: cIdx });
+    },
+    revert() {
+      DataStore.cols.splice(cIdx, 1);
+      for (let r = 0; r < DataStore.rows.length; r++) {
+        DataStore.rows[r].splice(cIdx, 1);
+      }
+      for (const rk in DataStore.styles) {
+        const rowSt = DataStore.styles[rk];
+        const newRow = {};
+        for (const ck in rowSt) {
+          const ci = parseInt(ck, 10);
+          if (ci === cIdx) continue;
+          newRow[ci > cIdx ? ci - 1 : ci] = rowSt[ck];
+        }
+        DataStore.styles[rk] = newRow;
+      }
+      DataStore.notify('cols', { c: cIdx });
+    } };
+}
+
+function RemoveColCommand(cIdx) {
+  const savedColName = DataStore.cols[cIdx];
+  const savedValues = DataStore.rows.map(row => row[cIdx]);
+  const savedStyles = {};
+  for (const rk in DataStore.styles) {
+    if (DataStore.styles[rk][cIdx] !== undefined) {
+      savedStyles[rk] = JSON.parse(JSON.stringify(DataStore.styles[rk][cIdx]));
+    }
+  }
+  return { type:'removeCol', r:null, c:cIdx, savedColName, savedValues, savedStyles,
+    apply() {
+      DataStore.cols.splice(cIdx, 1);
+      for (let r = 0; r < DataStore.rows.length; r++) {
+        DataStore.rows[r].splice(cIdx, 1);
+      }
+      for (const rk in DataStore.styles) {
+        const rowSt = DataStore.styles[rk];
+        const newRow = {};
+        for (const ck in rowSt) {
+          const ci = parseInt(ck, 10);
+          if (ci === cIdx) continue;
+          newRow[ci > cIdx ? ci - 1 : ci] = rowSt[ck];
+        }
+        DataStore.styles[rk] = newRow;
+      }
+      DataStore.notify('cols', { c: cIdx });
+    },
+    revert() {
+      DataStore.cols.splice(cIdx, 0, savedColName);
+      for (let r = 0; r < DataStore.rows.length; r++) {
+        DataStore.rows[r].splice(cIdx, 0, savedValues[r]);
+      }
+      for (const rk in DataStore.styles) {
+        const rowSt = DataStore.styles[rk];
+        const newRow = {};
+        for (const ck in rowSt) {
+          const ci = parseInt(ck, 10);
+          newRow[ci >= cIdx ? ci + 1 : ci] = rowSt[ck];
+        }
+        DataStore.styles[rk] = newRow;
+      }
+      for (const rk in savedStyles) {
+        if (!DataStore.styles[rk]) DataStore.styles[rk] = {};
+        DataStore.styles[rk][cIdx] = JSON.parse(JSON.stringify(savedStyles[rk]));
+      }
+      DataStore.notify('cols', { c: cIdx });
+    } };
 }
 
 /* ============================================================
@@ -3025,12 +3194,20 @@ const IO = {
     if (ExcelIO.isXlsx(file)) {
       return this._parseXlsxFile(file);
     }
-    /* v0.5.0-Knabstrupper: scan eerste 20 regels op multi-tabel-markers */
+    /* v0.5.0-Knabstrupper: scan eerste 8KB op multi-tabel-markers */
     const headSample = (file.size > 8192) ? await file.slice(0, 8192).text() : await file.text();
     const hasMarkers = /^# TABLE\s+/m.test(headSample);
+    /* v0.5.0.2 B-007: diagnostiek bij detect */
+    console.log('[SheetHorse import] file=' + file.name + ' size=' + file.size + ' bytes; multi-tabel-markers detected=' + hasMarkers);
     if (hasMarkers) {
       const fullText = await file.text();
-      return this._parseMultiTableCsv(fullText, file.name);
+      const result = this._parseMultiTableCsv(fullText, file.name);
+      console.log('[SheetHorse import] multi-tabel parsed:',
+        result.totalSheets + ' tabellen',
+        '· ' + (result.relations || []).length + ' relaties',
+        '· query: ' + (result.lastQuery ? 'ja (' + result.lastQuery.length + ' chars)' : 'nee'),
+        '· opmaak: ' + (result.styleCellCount || 0) + ' cellen gelift');
+      return result;
     }
     return new Promise((resolve, reject) => {
       Papa.parse(file, {
@@ -3730,6 +3907,10 @@ const UI = {
       btnEdit:          document.getElementById('btnEdit'),
       btnUndo:          document.getElementById('btnUndo'),
       btnRedo:          document.getElementById('btnRedo'),
+      btnAddRow:        document.getElementById('btnAddRow'),
+      btnDelRow:        document.getElementById('btnDelRow'),
+      btnAddCol:        document.getElementById('btnAddCol'),
+      btnDelCol:        document.getElementById('btnDelCol'),
       btnFilter:        document.getElementById('btnFilter'),
       btnSql:           document.getElementById('btnSql'),
       btnExport:        document.getElementById('btnExport'),
@@ -3769,6 +3950,9 @@ const UI = {
       exportModal:      document.getElementById('exportModal'),
       sqlBuilder:       document.getElementById('sqlBuilder'),
       btnToggleBuilder: document.getElementById('btnToggleBuilder'),
+      fromSheet:        document.getElementById('fromSheet'),
+      joinRows:         document.getElementById('joinRows'),
+      btnAddJoin:       document.getElementById('btnAddJoin'),
       selModeAll:       document.getElementById('selModeAll'),
       selModeCols:      document.getElementById('selModeCols'),
       selectCols:       document.getElementById('selectCols'),
@@ -3908,6 +4092,11 @@ const UI = {
   wireUndoRedoButtons() {
     this.els.btnUndo.addEventListener('click', () => this.undo());
     this.els.btnRedo.addEventListener('click', () => this.redo());
+    /* v0.6.0-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
+    this.els.btnAddRow.addEventListener('click', () => this.addRowAtSelection());
+    this.els.btnDelRow.addEventListener('click', () => this.delRowAtSelection());
+    this.els.btnAddCol.addEventListener('click', () => this.addColAtSelection());
+    this.els.btnDelCol.addEventListener('click', () => this.delColAtSelection());
   },
 
   /* ====== Sheet-tabs strip (SheetHorse v0.5.0-Knabstrupper) ====== */
@@ -4029,13 +4218,18 @@ const UI = {
   _addBlankSheet() {
     if (EditController.isEditing()) EditController.commit();
     if (EditController.isEditingHeader()) EditController.commitColEdit();
-    const newIdx = DataStore.addSheet({
-      name: `Sheet${DataStore.sheets.length + 1}`,
-      rows: [['']],
-      cols: ['col_1'],
-      styles: {}
-    }, true);
-    this.showToast(`Nieuw werkblad: ${DataStore.sheets[newIdx].name}`, 'ok');
+    /* v0.5.0.2 B-008: dialog voor #kolommen × #rijen i.p.v. hard 1×1 */
+    this._blankSheetMode = true;
+    this.els.newCsvModal.classList.add('open');
+    this.els.newCsvModal.setAttribute('aria-hidden', 'false');
+    /* Titel + knop labelen voor blank-sheet-context */
+    const titleEl = document.getElementById('newCsvModalTitle');
+    if (titleEl) titleEl.textContent = '➕ Nieuw werkblad';
+    if (this.els.btnNewCsvConfirm) this.els.btnNewCsvConfirm.textContent = '➕ Werkblad toevoegen';
+    /* Voorgevuld 3×5 */
+    this.els.newCsvCols.value = '3';
+    this.els.newCsvRows.value = '5';
+    setTimeout(() => { this.els.newCsvCols.focus(); this.els.newCsvCols.select(); }, 50);
   },
 
   _deleteSheetWithConfirm(idx) {
@@ -4424,19 +4618,16 @@ const UI = {
   closeNewCsvDialog() {
     this.els.newCsvModal.classList.remove('open');
     this.els.newCsvModal.setAttribute('aria-hidden', 'true');
+    /* v0.5.0.2 B-008: reset modal-titel + knop naar default (nieuwe-CSV mode) */
+    const titleEl = document.getElementById('newCsvModalTitle');
+    if (titleEl) titleEl.textContent = '🆕 Nieuwe lege CSV';
+    if (this.els.btnNewCsvConfirm) this.els.btnNewCsvConfirm.textContent = '🆕 Aanmaken';
+    this._blankSheetMode = false;
   },
 
   confirmNewCsv() {
     const ncols = Math.max(1, Math.min(100, parseInt(this.els.newCsvCols.value, 10) || 5));
     const nrows = Math.max(0, Math.min(10000, parseInt(this.els.newCsvRows.value, 10) || 0));
-    /* Reset alles wat aan vorige data gekoppeld is */
-    if (EditController.isEditing()) EditController.cancel();
-    Selection.clear();
-    CommandHistory.clear();
-    Filter.clear();
-    SQLEngine.clear();
-    SQLBuilder.reset();
-    SearchReplace.clear();
     /* Bouw lege dataset */
     const cols = [];
     for (let i = 0; i < ncols; i++) cols.push('col_' + (i + 1));
@@ -4445,6 +4636,25 @@ const UI = {
       const row = new Array(ncols).fill('');
       rows.push(row);
     }
+    if (this._blankSheetMode) {
+      /* v0.5.0.2 B-008: nieuw werkblad toevoegen aan multi-sheet workbook */
+      const newIdx = DataStore.addSheet({
+        name: `Sheet${DataStore.sheets.length + 1}`,
+        rows, cols, styles: {},
+        dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' }
+      }, true);
+      this.closeNewCsvDialog();
+      this.showToast(`Nieuw werkblad: ${DataStore.sheets[newIdx].name} (${nrows} × ${ncols})`, 'ok');
+      return;
+    }
+    /* Vervang-mode: reset alles wat aan vorige data gekoppeld is */
+    if (EditController.isEditing()) EditController.cancel();
+    Selection.clear();
+    CommandHistory.clear();
+    Filter.clear();
+    SQLEngine.clear();
+    SQLBuilder.reset();
+    SearchReplace.clear();
     DataStore.load({
       rows, cols,
       dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' },
@@ -4794,6 +5004,12 @@ const UI = {
       this.els.btnToggleBuilder.classList.toggle('active', open);
       if (open) this.refreshBuilderColumns();
     });
+    /* v0.6.0-Hanoverian F-003: FROM + JOIN handlers */
+    this.els.fromSheet.addEventListener('change', (e) => {
+      SQLBuilder.state.fromSheet = e.target.value;
+      this.refreshBuilderColumns();
+    });
+    this.els.btnAddJoin.addEventListener('click', () => this.addJoinRow());
     this.els.selModeAll.addEventListener('change', () => {
       SQLBuilder.state.selectMode = 'all';
       this.els.selectCols.disabled = true;
@@ -4830,7 +5046,25 @@ const UI = {
   },
 
   refreshBuilderColumns() {
-    const cols = DataStore.cols || [];
+    /* v0.6.0-Hanoverian F-003: FROM-dropdown vullen + JOIN-rijen renderen */
+    const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
+    if (this.els.fromSheet) {
+      const prevFrom = SQLBuilder.state.fromSheet
+        || (DataStore.sheets[DataStore.activeIdx] && !DataStore.sheets[DataStore.activeIdx].isQueryResult ? DataStore.sheets[DataStore.activeIdx].name : '');
+      this.els.fromSheet.innerHTML = '';
+      for (const s of sheets) {
+        const o = document.createElement('option');
+        o.value = s.name; o.textContent = s.name;
+        if (s.name === prevFrom) o.selected = true;
+        this.els.fromSheet.appendChild(o);
+      }
+      if (!SQLBuilder.state.fromSheet && this.els.fromSheet.value) {
+        SQLBuilder.state.fromSheet = this.els.fromSheet.value;
+      }
+    }
+    this.renderJoinRows();
+    /* Verzamel kolommen uit FROM-sheet + alle JOIN-sheets (gekwalificeerd als sheet.col bij duplicaten) */
+    const cols = this._builderAllColumns();
     /* Populate SELECT multi-select */
     this.els.selectCols.innerHTML = '';
     for (const c of cols) {
@@ -4848,6 +5082,151 @@ const UI = {
     /* Render where + order rows */
     this.renderWhereRows();
     this.renderOrderRows();
+  },
+
+  _builderAllColumns() {
+    /* Verzamel unieke kolommen uit alle sheets in de query (FROM + JOIN-targets) */
+    const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
+    const inUse = new Set();
+    const fromName = SQLBuilder.state.fromSheet;
+    if (fromName) inUse.add(fromName);
+    for (const j of SQLBuilder.state.joins) {
+      if (j.sheet) inUse.add(j.sheet);
+    }
+    if (inUse.size === 0 && DataStore.cols.length > 0) {
+      return DataStore.cols.slice();
+    }
+    const colSet = new Set();
+    const cols = [];
+    for (const s of sheets) {
+      if (!inUse.has(s.name)) continue;
+      for (const c of s.cols) {
+        if (!colSet.has(c)) { colSet.add(c); cols.push(c); }
+      }
+    }
+    return cols;
+  },
+
+  addJoinRow(initial) {
+    /* Voorgevuld: 1e relatie tussen huidige FROM en willekeurige andere sheet, indien beschikbaar */
+    let prefill = initial || { type: 'INNER', sheet: '', leftCol: '', rightCol: '' };
+    if (!initial) {
+      const fromName = SQLBuilder.state.fromSheet;
+      const rel = (DataStore.relations || []).find(r =>
+        (r.from_sheet === fromName || r.to_sheet === fromName)
+        && r.from_sheet && r.to_sheet && r.from_col && r.to_col);
+      if (rel) {
+        if (rel.from_sheet === fromName) {
+          prefill = { type: 'INNER', sheet: rel.to_sheet, leftCol: rel.from_col, rightCol: rel.to_col };
+        } else {
+          prefill = { type: 'INNER', sheet: rel.from_sheet, leftCol: rel.to_col, rightCol: rel.from_col };
+        }
+      }
+    }
+    SQLBuilder.state.joins.push(prefill);
+    this.refreshBuilderColumns();
+  },
+
+  renderJoinRows() {
+    if (!this.els.joinRows) return;
+    this.els.joinRows.innerHTML = '';
+    const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
+    const fromName = SQLBuilder.state.fromSheet;
+    SQLBuilder.state.joins.forEach((j, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap;';
+
+      /* JOIN type */
+      const typeSel = document.createElement('select');
+      ['INNER','LEFT','RIGHT'].forEach(t => {
+        const o = document.createElement('option');
+        o.value = t; o.textContent = t + ' JOIN';
+        if ((j.type || 'INNER') === t) o.selected = true;
+        typeSel.appendChild(o);
+      });
+      typeSel.addEventListener('change', e => { j.type = e.target.value; this.refreshBuilderColumns(); });
+      row.appendChild(typeSel);
+
+      /* Target sheet */
+      const sheetSel = document.createElement('select');
+      sheetSel.innerHTML = '<option value="">--tabel--</option>';
+      sheets.forEach(s => {
+        if (s.name === fromName) return;
+        const o = document.createElement('option');
+        o.value = s.name; o.textContent = s.name;
+        if (j.sheet === s.name) o.selected = true;
+        sheetSel.appendChild(o);
+      });
+      sheetSel.addEventListener('change', e => {
+        j.sheet = e.target.value;
+        j.rightCol = '';
+        /* Suggest leftCol/rightCol uit relations */
+        const rel = (DataStore.relations || []).find(r =>
+          (r.from_sheet === fromName && r.to_sheet === j.sheet)
+          || (r.to_sheet === fromName && r.from_sheet === j.sheet));
+        if (rel) {
+          if (rel.from_sheet === fromName) { j.leftCol = rel.from_col; j.rightCol = rel.to_col; }
+          else                              { j.leftCol = rel.to_col;   j.rightCol = rel.from_col; }
+        }
+        this.refreshBuilderColumns();
+      });
+      row.appendChild(sheetSel);
+
+      /* ON: left col (FROM-sheet) */
+      const onLabel = document.createElement('span');
+      onLabel.textContent = 'ON ' + (fromName || '?') + '.';
+      onLabel.style.cssText = 'font-size:.78rem;color:var(--color-text-dim);';
+      row.appendChild(onLabel);
+
+      const leftSel = document.createElement('select');
+      leftSel.innerHTML = '<option value="">--kolom--</option>';
+      const fromSheet = sheets.find(s => s.name === fromName);
+      const leftCols = fromSheet ? fromSheet.cols : [];
+      leftCols.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        if (j.leftCol === c) o.selected = true;
+        leftSel.appendChild(o);
+      });
+      leftSel.addEventListener('change', e => { j.leftCol = e.target.value; });
+      row.appendChild(leftSel);
+
+      const eq = document.createElement('span');
+      eq.textContent = '=';
+      eq.style.cssText = 'font-weight:600;color:var(--color-text-dim);';
+      row.appendChild(eq);
+
+      const rightLabel = document.createElement('span');
+      rightLabel.textContent = (j.sheet || '?') + '.';
+      rightLabel.style.cssText = 'font-size:.78rem;color:var(--color-text-dim);';
+      row.appendChild(rightLabel);
+
+      const rightSel = document.createElement('select');
+      rightSel.innerHTML = '<option value="">--kolom--</option>';
+      const joinSheet = sheets.find(s => s.name === j.sheet);
+      const rightCols = joinSheet ? joinSheet.cols : [];
+      rightCols.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        if (j.rightCol === c) o.selected = true;
+        rightSel.appendChild(o);
+      });
+      rightSel.addEventListener('change', e => { j.rightCol = e.target.value; });
+      row.appendChild(rightSel);
+
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'rm-btn';
+      rm.textContent = '×';
+      rm.title = 'Verwijder JOIN';
+      rm.addEventListener('click', () => {
+        SQLBuilder.state.joins.splice(idx, 1);
+        this.refreshBuilderColumns();
+      });
+      row.appendChild(rm);
+
+      this.els.joinRows.appendChild(row);
+    });
   },
 
   refreshBuilderUI() {
@@ -5328,6 +5707,68 @@ const UI = {
     }
   },
 
+  /* v0.6.0-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
+  addRowAtSelection() {
+    if (SQLEngine.active) { this.showToast('Niet beschikbaar in SQL-mode', 'info'); return; }
+    if (EditController.isEditing()) EditController.commit();
+    if (EditController.isEditingHeader()) EditController.commitColEdit();
+    const ncols = DataStore.cols.length || 1;
+    const blank = new Array(ncols).fill('');
+    const insertAt = (Selection.r != null) ? Selection.r + 1 : DataStore.rows.length;
+    const cmd = InsertRowCommand(insertAt, blank);
+    cmd.apply();
+    CommandHistory.push(cmd);
+    Selection.set(insertAt, Selection.c != null ? Selection.c : 0);
+    this.showToast(`Rij toegevoegd op positie ${insertAt + 1}`, 'ok');
+  },
+
+  delRowAtSelection() {
+    if (SQLEngine.active) { this.showToast('Niet beschikbaar in SQL-mode', 'info'); return; }
+    if (EditController.isEditing()) EditController.cancel();
+    if (Selection.r == null) { this.showToast('Selecteer eerst een cel in de rij', 'warn'); return; }
+    if (DataStore.rows.length <= 1) { this.showToast('Laatste rij kan niet verwijderd worden', 'warn'); return; }
+    const rIdx = Selection.r;
+    const cmd = RemoveRowCommand(rIdx);
+    cmd.apply();
+    CommandHistory.push(cmd);
+    const newR = Math.min(rIdx, DataStore.rows.length - 1);
+    Selection.set(newR, Selection.c != null ? Selection.c : 0);
+    this.showToast(`Rij ${rIdx + 1} verwijderd`, 'ok');
+  },
+
+  addColAtSelection() {
+    if (SQLEngine.active) { this.showToast('Niet beschikbaar in SQL-mode', 'info'); return; }
+    if (EditController.isEditing()) EditController.commit();
+    if (EditController.isEditingHeader()) EditController.commitColEdit();
+    const insertAt = (Selection.c != null) ? Selection.c + 1 : DataStore.cols.length;
+    /* Unieke kolomnaam genereren */
+    let n = DataStore.cols.length + 1;
+    let name = 'col_' + n;
+    while (DataStore.cols.indexOf(name) !== -1) { n++; name = 'col_' + n; }
+    const cmd = InsertColCommand(insertAt, name);
+    cmd.apply();
+    CommandHistory.push(cmd);
+    Selection.set(Selection.r != null ? Selection.r : 0, insertAt);
+    this.showToast(`Kolom "${name}" toegevoegd op positie ${insertAt + 1}`, 'ok');
+  },
+
+  delColAtSelection() {
+    if (SQLEngine.active) { this.showToast('Niet beschikbaar in SQL-mode', 'info'); return; }
+    if (EditController.isEditing()) EditController.cancel();
+    if (Selection.c == null) { this.showToast('Selecteer eerst een cel in de kolom', 'warn'); return; }
+    if (DataStore.cols.length <= 1) { this.showToast('Laatste kolom kan niet verwijderd worden', 'warn'); return; }
+    const cIdx = Selection.c;
+    const colName = DataStore.cols[cIdx];
+    const hasData = DataStore.rows.some(row => row[cIdx] != null && row[cIdx] !== '');
+    if (hasData && !confirm(`Kolom "${colName}" met data verwijderen?\n(undo blijft beschikbaar)`)) return;
+    const cmd = RemoveColCommand(cIdx);
+    cmd.apply();
+    CommandHistory.push(cmd);
+    const newC = Math.min(cIdx, DataStore.cols.length - 1);
+    Selection.set(Selection.r != null ? Selection.r : 0, newC);
+    this.showToast(`Kolom "${colName}" verwijderd`, 'ok');
+  },
+
   async handleFile(file) {
     try {
       if (EditController.isEditing()) EditController.cancel();
@@ -5363,6 +5804,13 @@ const UI = {
       let msg = `Geladen: ${file.name} — ${c.rows} rij${c.rows === 1 ? '' : 'en'} × ${c.cols} kolom${c.cols === 1 ? '' : 'men'}`;
       if (result.sourceFormat === 'xlsx') {
         msg += ` · ${result.totalSheets} werkblad${result.totalSheets === 1 ? '' : 'en'}`;
+      } else if (result.sourceFormat === 'csv-multi') {
+        /* v0.5.0.2 B-007: expliciete feedback bij multi-tabel CSV detect */
+        const relCount = (result.relations || []).length;
+        const queryYes = !!result.lastQuery;
+        msg += ` · multi-tabel CSV: ${result.totalSheets} tab${result.totalSheets === 1 ? '' : 's'}`;
+        if (relCount > 0) msg += ` + ${relCount} relatie${relCount === 1 ? '' : 's'}`;
+        if (queryYes) msg += ` + 1 query`;
       }
       const styleCells = result.styleCellCount || 0;
       if (styleCells > 0) {
@@ -5396,6 +5844,10 @@ const UI = {
       this.els.btnSearch.disabled = true;
       this.els.btnAutosave.disabled = false; /* autosave-toggle altijd beschikbaar */
       this.els.btnFormat.disabled = true;
+      this.els.btnAddRow.disabled = true;
+      this.els.btnDelRow.disabled = true;
+      this.els.btnAddCol.disabled = true;
+      this.els.btnDelCol.disabled = true;
       this.els.opmaakPanel.classList.remove('open');
       this.els.btnFormat.classList.remove('active');
       SearchReplace.clear();
@@ -5448,6 +5900,10 @@ const UI = {
       this.els.btnExport.disabled = false;
       this.els.btnSearch.disabled = SQLEngine.active;
       this.els.btnFormat.disabled = SQLEngine.active;
+      this.els.btnAddRow.disabled = SQLEngine.active;
+      this.els.btnDelRow.disabled = SQLEngine.active;
+      this.els.btnAddCol.disabled = SQLEngine.active;
+      this.els.btnDelCol.disabled = SQLEngine.active;
       Renderer.renderAll();
       this.updateStats();
       this.refreshPhaseBadge();
@@ -5469,6 +5925,10 @@ const UI = {
     this.els.btnSearch.disabled = SQLEngine.active;
     this.els.btnAutosave.disabled = false;
     this.els.btnFormat.disabled = SQLEngine.active;
+    this.els.btnAddRow.disabled = SQLEngine.active;
+    this.els.btnDelRow.disabled = SQLEngine.active;
+    this.els.btnAddCol.disabled = SQLEngine.active;
+    this.els.btnDelCol.disabled = SQLEngine.active;
     Renderer.renderAll();
     this.renderSheetTabs();
     this.updateStats();
