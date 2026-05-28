@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CSVHorse — CSV viewer & editor</title>
+  <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
+  <meta name="generator" content="CSVHorse v0.0.1-Friesian">
+  <style>
+    :root {
+      --color-bg:        #0f1115;
+      --color-surface:   #161a22;
+      --color-border:    #2a3140;
+      --color-text:      #e6e9ef;
+      --color-text-dim:  #9aa3b2;
+      --color-accent:    #59c5a8;
+      --color-accent-2:  #4ab3ff;
+      --color-danger:    #ff6b6b;
+      --font-ui:         system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono:       ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    }
+    html, body { margin:0; padding:0; height:100%; background:var(--color-bg); color:var(--color-text); font-family:var(--font-ui); }
+    header { padding:.75rem 1rem; border-bottom:1px solid var(--color-border); display:flex; gap:1rem; align-items:center; background:var(--color-surface); }
+    header h1 { margin:0; font-size:1.1rem; letter-spacing:.5px; }
+    header .badge { font-size:.7rem; color:var(--color-text-dim); border:1px solid var(--color-border); padding:.15rem .5rem; border-radius:99px; }
+    main { padding:2rem; max-width:980px; margin:0 auto; }
+    .placeholder { border:1px dashed var(--color-border); padding:2rem; border-radius:.5rem; background:var(--color-surface); }
+    .placeholder h2 { margin-top:0; color:var(--color-accent); }
+    code { font-family:var(--font-mono); background:#0b0d12; padding:.1rem .4rem; border-radius:.25rem; }
+    footer { color:var(--color-text-dim); font-size:.8rem; padding:1rem; text-align:center; border-top:1px solid var(--color-border); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CSVHorse</h1>
+    <span class="badge">v0.0.1-Friesian</span>
+    <span class="badge">skeleton</span>
+  </header>
+  <main>
+    <section class="placeholder">
+      <h2>Skeleton-fase</h2>
+      <p>Dit is een placeholder voor de werkende applicatie. De runtime — CSV-parser (PapaParse), SQL-engine (AlaSQL), virtual-scroll renderer, undo-stack, autosave, zoek/vervang en opmaak-toolbar — volgt in een aparte implementatie-sessie.</p>
+      <p>Voor architectuur en componenten: zie <code>ARCHITECTURE.md</code>. Voor design-tokens: <code>DESIGN_TOKENS.md</code>. Voor principes: <code>docs/PRINCIPLES.md</code>.</p>
+    </section>
+  </main>
+  <footer>
+    CSVHorse &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl" style="color:var(--color-accent-2);">icthorse.nl</a>
+  </footer>
+</body>
+</html>
