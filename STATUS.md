@@ -2,7 +2,7 @@
 
 ## Huidige fase
 
-**v0.1.0-Lipizzaner** — UI-filter (kolom → operator → waarde) bovenop edit/undo/render.
+**v0.1.1-Akhal-Teke** — SQL-panel via AlaSQL (volledige SELECT/WHERE/GROUP BY/ORDER BY/aggregates) bovenop UI-filter + edit/undo.
 
 | Aspect | Status |
 |--------|--------|
@@ -17,12 +17,16 @@
 | Keyboard navigatie (Arrow / Home / End / Tab / Enter) | ✓ |
 | Single-cell paste | ✓ (multi-cell volgt later) |
 | Selectie-tracking + Delete/Backspace = wis cel | ✓ |
-| **UI-filter (kolom → operator → waarde)** | ✓ **werkend** (v0.1.0-Lipizzaner) |
-| **8 operators (bevat / niet bevat / =/!= / begint met / eindigt met / leeg / niet leeg)** | ✓ |
-| **viewSet → Renderer toont subset** | ✓ |
-| **Arrow-nav respecteert viewSet** | ✓ |
-| **Filter blijft actief na cell-edit (Excel-conventie)** | ✓ |
-| SQL-panel + AlaSQL | ⏸ v0.1.1-Akhal-Teke |
+| UI-filter (kolom → operator → waarde) | ✓ v0.1.0-Lipizzaner |
+| 8 operators (bevat / niet bevat / =/!= / begint met / eindigt met / leeg / niet leeg) | ✓ |
+| viewSet → Renderer toont subset | ✓ |
+| Arrow-nav respecteert viewSet | ✓ |
+| Filter blijft actief na cell-edit (Excel-conventie) | ✓ |
+| **SQL-panel (AlaSQL 4.17.3 vendored, full grammar)** | ✓ **werkend** (v0.1.1-Akhal-Teke) |
+| **Renderer mode-switch (data-mode ↔ SQL-result-mode)** | ✓ |
+| **SQL-result read-only (edit/undo gedisabled)** | ✓ |
+| **Filter + SQL exclusief** | ✓ |
+| **Ctrl/Cmd+Enter = Run · Escape = sluit** | ✓ |
 | Opmaak (bold/italic/kleur/...) | ⏸ v0.1.2-Appaloosa |
 | Autosave + zoek/vervang | ⏸ v0.2.0-Mustang |
 | Virtual scrolling 100k+ | ⏸ v0.3.0-Haflinger |
@@ -56,3 +60,4 @@
 | 2026-05-28 | 0.0.3-Andalusian | Cell-edit + onbeperkte undo/redo: EditController + CommandHistory + Selection modules. Edit-triggers: dubbelklik / Enter / F2. Commit: Enter (volgende rij) / Tab (volgende kol) / click-buiten. Cancel: Escape. Keyboard-nav: Arrow / Home / End. Delete/Backspace = wis cel (als command). Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z of Ctrl/Cmd+Y redo. Single-cell paste. Undo-stack-counter in toolbar. |
 | 2026-05-28 | 0.1.0-Lipizzaner | UI-filter: Filter-module met viewSet (kolom → operator → waarde). 8 operators (contains/ncontains/eq/neq/starts/ends/empty/nempty). Filter-paneel toggle via ⏚-knop; kolom-dropdown + operator-dropdown + waarde-input + Toepassen/Wis-filter. Renderer respecteert viewSet. Arrow-navigatie loopt door zichtbare rijen. Filter persistent door cell-edits (Excel-conventie). Gefilterde-kolom-header krijgt ⏚-marker. Stats-counter toont "X van Y rijen — kolom op waarde". **Oranje versiebump** (design-impact). |
 | 2026-05-28 | (infra) | B-001 opgelost: jsDelivr CDN-cache gepurged + **GitHub Pages ingeschakeld** op `https://cpaglebbeek.github.io/CSVHorse/` — preferred live-preview URL voor active development (jsDelivr was nog op v0.0.2 cached). Patroon `DEPLOY-CDN-001` vastgelegd in `docs/BUGLIST.md`. |
+| 2026-05-28 | 0.1.1-Akhal-Teke | SQL-panel via AlaSQL 4.17.3 vendored (~500KB, SHA `a53ec7d6...`). SQLEngine-module wraps `alasql(query, [DataStore.asObjects()])`. Renderer mode-switch: data-mode (DataStore+Filter) ↔ sql-mode (read-only result-tabel met gele accent). Edit/undo/paste gedisabled in SQL-mode + toast bij dubbelklik. Filter + SQL exclusief — één toepassen wist de ander. Ctrl/Cmd+Enter = Run, Escape = sluit paneel. Default placeholder `SELECT * FROM data LIMIT 50`. Tabel-naam: `data`. **Groen versiebump** (+0.0.1; nieuw paneel maar logische architectuur consistent). |

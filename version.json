@@ -1,7 +1,7 @@
 {
-  "version": "0.1.0",
-  "codename": "Lipizzaner",
+  "version": "0.1.1",
+  "codename": "Akhal-Teke",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 3: UI-filter (kolom -> operator -> waarde) over viewSet"
+  "phase": "MVP-stap 4: SQL-panel via AlaSQL (SELECT/WHERE/GROUP BY/ORDER BY/aggregates)"
 }

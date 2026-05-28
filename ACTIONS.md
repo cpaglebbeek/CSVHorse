@@ -7,7 +7,7 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 ### Skeleton → MVP
 
 - [x] **Vendoring PapaParse** — v5.4.1, SHA `b8e870c5...` vastgepind in DEPENDENCIES.md (28-05, v0.0.2-Arabian)
-- [ ] **Vendoring AlaSQL** — download v4.x minified, SHA verifiëren, inline (v0.1.1-Akhal-Teke)
+- [x] **Vendoring AlaSQL** — v4.17.3, SHA `a53ec7d6...` vastgepind in DEPENDENCIES.md (28-05, v0.1.1-Akhal-Teke)
 - [x] **DataStore (basic)** — rows/cols/dialect/fileName model + observer-pattern (28-05, v0.0.2-Arabian; styles + Command-stack volgen later)
 - [x] **IO-laag (upload + parse + dialect-detect)** — File API + drag-drop + PapaParse.parse (28-05, v0.0.2-Arabian; export volgt v0.4.0-Shire)
 - [ ] **CSV-roundtrip styles** — `__style_*`-kolommen liften bij import, flatten bij export, dialog-toggle (default AAN) (v0.4.0-Shire)
@@ -17,7 +17,7 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 - [x] **CommandHistory** — atomic edits, undo/redo (Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y), onbeperkt (28-05, v0.0.3-Andalusian)
 - [ ] **Toolbar — opmaak** — bold/italic/underline/strikethrough/kleur/background/font-size/alignment (v0.1.2-Appaloosa)
 - [x] **Toolbar — UI-filter** — kolom-dropdown + 8 operators + waarde-input → viewSet (28-05, v0.1.0-Lipizzaner; compile-naar-SQL niet nodig — eigen Filter-module gekozen i.p.v. SQL-shortcut)
-- [ ] **SQL-panel** — textarea + run-knop + result-binding aan Renderer (v0.1.1-Akhal-Teke)
+- [x] **SQL-panel** — textarea + Run-knop + AlaSQL 4.17.3 vendored, mode-switch Renderer (28-05, v0.1.1-Akhal-Teke)
 - [ ] **AutosaveService** — throttled localStorage-snapshot + restore + schuif AAN/UIT + quota-bewaking (v0.2.0-Mustang)
 - [ ] **Zoek/vervang dialog** — regex/case-toggle/scope (alles/kolom/selectie)/volgende-vorige (v0.2.0-Mustang)
 - [ ] **Settings-modal** — dialect-keuze, autosave-toggle, export-opties, theme (toekomstig) (v0.2.0+)
@@ -49,3 +49,5 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 - [x] **2026-05-28** — v0.0.2-Arabian opgeleverd: werkende CSV-import + render. PapaParse 5.4.1 vendored (`vendor/papaparse-5.4.1.min.js` + inline in `index.html`), DataStore + IO + Renderer modules in vanilla JS, drag-drop op hele pagina, dialect-auto-detect (komma/puntkomma/tab/pipe), sticky header, file-counter, toast-feedback, lege-state CTA. Comfortabel tot ~5k rijen (virtual scroll volgt v0.3.0-Haflinger)
 - [x] **2026-05-28** — v0.0.3-Andalusian opgeleverd: cell-edit + onbeperkte undo/redo. EditController (dubbelklik/Enter/F2 om te starten; Enter/Tab/click-buiten commit; Escape cancel; Shift+Tab terug). CommandHistory (onbeperkte undo-stack met SetCellCommand). Selection (single-cell met arrow/Home/End navigatie, visuele highlight, scrollIntoView). Delete/Backspace = wis cel via command. Single-cell paste (multi-cell volgt). Undo/redo-counters in toolbar. Flash-animatie bij cell-update.
 - [x] **2026-05-28** — v0.1.0-Lipizzaner opgeleverd: UI-filter. Filter-module met viewSet-mechanisme (kolom → operator → waarde). 8 operators: bevat / bevat niet / is gelijk aan / is niet gelijk aan / begint met / eindigt met / is leeg / is niet leeg. Filter-paneel via ⏚-toggle. Renderer respecteert viewSet (alleen zichtbare rijen). Selection.move loopt door visible-rows-volgorde. Filter persistent na cell-edit. Gefilterde kolom-header met ⏚-marker. Stats: "X van Y rijen — kolom op waarde". Oranje versiebump (design-impact).
+- [x] **2026-05-28** — B-001 opgelost: jsDelivr CDN-cache gepurged + GitHub Pages ingeschakeld. Preferred preview-URL: https://cpaglebbeek.github.io/CSVHorse/. Patroon DEPLOY-CDN-001 vastgelegd in BUGLIST.md.
+- [x] **2026-05-28** — v0.1.1-Akhal-Teke opgeleverd: SQL-panel via AlaSQL 4.17.3 vendored (511KB minified, SHA a53ec7d6...). SQLEngine-module wrapt `alasql(query, [DataStore.asObjects()])`. Renderer mode-switch: 'data'-mode (DataStore + Filter) ↔ 'sql'-mode (read-only result-tabel). Toolbar `≡ SQL`-knop opent textarea-paneel met Run / Wis SQL knoppen. Ctrl/Cmd+Enter = Run; Escape = sluit. Default placeholder `SELECT * FROM data LIMIT 50`. Tabel-naam = `data`. Edit/undo/paste/Filter gedisabled in SQL-mode + toast bij dubbelklik. Filter + SQL wederzijds exclusief. Phase-badge wordt "SQL-resultaat" met gele accent. Stats-counter toont SQL-rij-en-kolom-count met bron-vermelding. Groen versiebump (+0.0.1; logische architectuur consistent).

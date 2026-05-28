@@ -7,7 +7,24 @@ Component-afhankelijkheden + wijzigings-impact matrix. Bij wijziging in een comp
 | Lib | Versie | Licentie | Rol | Bron | Status |
 |-----|--------|----------|-----|------|--------|
 | PapaParse | **5.4.1** | MIT | CSV parse + unparse | https://www.papaparse.com/ | ✓ vendored sinds v0.0.2-Arabian |
-| AlaSQL | 4.x | MIT | SQL-engine over JS-arrays | https://github.com/AlaSQL/alasql | ⏸ wacht op v0.1.1-Akhal-Teke |
+| AlaSQL | **4.17.3** | MIT | SQL-engine over JS-arrays | https://github.com/AlaSQL/alasql | ✓ vendored sinds v0.1.1-Akhal-Teke |
+
+### AlaSQL 4.17.3
+
+- **Bron-bestand:** `vendor/alasql-4.17.3.min.js` (511.831 bytes)
+- **SHA-256:** `a53ec7d69034d5f8e30d0c610d7930719dedba1d1cedc46ca5d959d5953bd2b6`
+- **CDN-URL bij download:** https://cdn.jsdelivr.net/npm/alasql@4.17.3/dist/alasql.min.js
+- **Inline opgenomen in:** `index.html` als tweede `<script>`-blok met versie + hash-comment
+- **Wrapper:** `window.alasql(query, [DataStore.asObjects()])` → result-array
+- **Gebruikt voor:** SQL-panel (v0.1.1+) — SELECT/WHERE/GROUP BY/ORDER BY/LIMIT/aggregates/joins
+
+**Verificatie-commando:**
+```bash
+shasum -a 256 vendor/alasql-4.17.3.min.js
+# moet zijn: a53ec7d69034d5f8e30d0c610d7930719dedba1d1cedc46ca5d959d5953bd2b6
+```
+
+**Bundle-impact:** ~500KB minified — substantieel groter dan PapaParse (19KB). Geaccepteerd binnen single-file constraint (P2) tot ~1MB; toekomstige optimalisatie via tree-shaking als bundle te groot wordt.
 
 ### PapaParse 5.4.1
 

@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.1.1-Akhal-Teke: SQL-panel (AlaSQL vendored, textarea + run, multi-condition + numerieke vergelijking)"
+resume: "verder met CSVHorse v0.1.2-Appaloosa: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -303,3 +303,66 @@ Uitgevoerd na skeleton-push. Score ~85% conform voor skeleton-fase: alle concept
 - GitHub Pages legacy build = ~24s
 - `gh api /repos/.../pages` POST = idempotent voor enable
 - Preferred dev-preview vanaf nu: **GitHub Pages**, niet jsDelivr
+
+## v0.1.1-Akhal-Teke (zesde deelopdracht: SQL-panel)
+
+**Prompt:** *"volgende versie"* → korte WhatIf met 4 defaults → *"ja, ga door"*.
+
+### Toegevoegd
+- `vendor/alasql-4.17.3.min.js` — 511.831 bytes, SHA-256 `a53ec7d69034d5f8e30d0c610d7930719dedba1d1cedc46ca5d959d5953bd2b6`
+- `index.html` uitgebreid met tweede vendored `<script>`-blok (AlaSQL) tussen PapaParse en eigen app
+- `DEPENDENCIES.md`: AlaSQL-sectie + status `✓ vendored sinds v0.1.1-Akhal-Teke`
+
+### Application-code uitbreidingen
+- **SQLEngine module** — `{active, lastQuery, result, error, run(query), clear(), describe()}`. `run()` roept `window.alasql(query, [DataStore.asObjects()])` aan, transformeert result-objects naar `{rows: arrays, cols: keys}`-format compatible met Renderer. Errors gevangen + bewaard in `error`-field.
+- **DataStore.asObjects()** — converteert `rows[]` van arrays naar object-array `[{col1: v1, col2: v2}, ...]` (AlaSQL werkt het beste met objects)
+- **Renderer mode-switch** — `renderAll()` checkt `SQLEngine.active`; bij `true` → `_renderSqlResult()` (gele `.sql-result`-class, cursor `default`, geen data-r/data-c attributen); bij `false` → bestaande data-mode render
+- **Selection / EditController / CommandHistory** — alle 3 gedisabled in SQL-mode (early-return checks); EditController.begin() laat toast zien "SQL-resultaat is read-only; Wis SQL om weer te bewerken"
+- **UI** — `wireSqlPanel()` met toggle + Run + Wis SQL + Ctrl/Cmd+Enter + Escape; SQL-en-Filter-paneel zijn wederzijds exclusief in open-state; phase-badge wordt "SQL-resultaat" met gele accent; SQL-summary toont rij/kolom-count
+
+### HTML / CSS uitbreidingen
+- **`<button id="btnSql">`** — toolbar-knop met `≡ SQL`-icoon, krijgt `.sql-active` class (gele accent) bij actieve SQL
+- **`<div class="sql-panel">`** — multi-line textarea + Run/Wis-SQL buttons + tagged sneltoets-hints (Tabel-naam: `data`, Ctrl/Cmd+Enter = Run, Esc = sluit)
+- **Default-placeholder textarea**: `SELECT * FROM data WHERE col1 LIKE '%waarde%' ORDER BY col2 LIMIT 100`
+- **Default-content bij eerste open**: `SELECT * FROM data LIMIT 50` (alleen als textarea leeg is)
+- **CSS** — `.sql-panel.open` (flex display), gele kleur-accent (`#f0c674`) voor SQL primary button, `.sql-result thead th` gele headers, `.toolbar button.sql-active` gele border, `.badge.sql-on` voor phase-badge, `.stats .sql-info` voor stats
+
+### Exclusieve modi-matrix
+| Filter | SQL | Bron-data | Render |
+|---|---|---|---|
+| inactief | inactief | DataStore.rows[] | data-mode normaal |
+| **actief** | inactief | DataStore.rows[] gefilterd via viewSet | data-mode subset |
+| inactief | **actief** | SQLEngine.result | sql-mode read-only |
+| ~~actief~~ | ~~actief~~ | ALS er een wordt toegepast wist hij de ander | n.v.t. |
+
+### Voorbeeld-queries die werken
+- `SELECT * FROM data LIMIT 10`
+- `SELECT * FROM data WHERE leeftijd > 30`
+- `SELECT beroep, COUNT(*) AS aantal FROM data GROUP BY beroep ORDER BY aantal DESC`
+- `SELECT naam, leeftijd FROM data WHERE stad = 'Haarlem' ORDER BY leeftijd`
+- `SELECT AVG(CAST(leeftijd AS NUMBER)) AS gem FROM data`
+
+### File-statistieken na v0.1.1
+- `index.html`: **1.781 regels / 587.501 bytes** (was 1.195 / 63.752 in v0.1.0)
+- 3 JS-blokken:
+  - PapaParse 5.4.1: 19.471 chars
+  - AlaSQL 4.17.3: **511.831 chars** (~500KB minified — substantieel)
+  - eigen app: 37.520 chars (+28% vs v0.1.0)
+- Totaal bundle ~575KB single-file
+- JS-syntax: alle 3 blokken groen via `new Function()`
+
+### Verificatie
+- AlaSQL-load-test via Node `new Function()` met UMD-wrap: ✓
+- Browser-open: `index.html` opent — SQL-paneel werkt, AlaSQL beschikbaar als `window.alasql`
+- Sample-test (handmatig): `/tmp/sample.csv` met 5 rijen → query `SELECT * FROM data WHERE leeftijd > 30` toont Cora/Dirk
+
+### Niet in v0.1.1 (latere plateaus)
+- INSERT/UPDATE/DELETE die de DataStore muteren (zou conflict geven met undo-stack; out of scope tot definieve beslis)
+- SQL-query-historie / autocompletion / syntax-highlighting
+- Persisted queries (autosave)
+- Opmaak per cel (v0.1.2-Appaloosa — volgende stap)
+- Export-resultaat naar CSV (komt via Export-knop in v0.4.0)
+- Multiple tables / joins met externe data
+
+### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.1.2-Appaloosa: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore"**
