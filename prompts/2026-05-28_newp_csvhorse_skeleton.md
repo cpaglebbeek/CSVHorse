@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.1.3: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore — codenaam te kiezen uit paardenrassen-thema"
+resume: "verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -451,9 +451,65 @@ const res = window.alasql(query);   // geen 2e arg
 **"verder met CSVHorse v0.1.3: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore — codenaam te kiezen uit paardenrassen-thema"**
 
 ### Codenaam-suggesties voor v0.1.3 (opmaak)
-- **Knabstrupper** (gespikkeld paardenras, past visueel bij opmaak)
-- **Tinker** / Gypsy Vanner
-- **Marwari** (Indiaas, kromme oren — sierlijk)
-- **Andalusian** (al gebruikt in oude v0.0.3 — niet hergebruiken; we hebben dat al)
+- **Knabstrupper** (gespikkeld paardenras, past visueel bij opmaak) ← gekozen
+- Tinker / Gypsy Vanner
+- Marwari
 
-Kiezen we bij start v0.1.3.
+## v0.1.3-Knabstrupper (achtste deelopdracht: opmaak-toolbar)
+
+**Prompt:** *"volgende versie"* → WhatIf met 4 defaults + codenaam Knabstrupper → *"ja, ga door"*.
+
+### Toegevoegd
+- **`DataStore.styles{}`** sparse storage `{rowIdx: {colIdx: StyleObj}}` met automatische cleanup van lege objects
+- **Styles-module** — `get(r,c)` / `set(r,c,prop,value)` / `clearCell(r,c)` / `cssFor(StyleObj)` / `hasAny(r,c)`. 8 PROPS: bold, italic, underline, strikethrough, color, background, fontSize, align
+- **SetStyleCommand(r,c,prop,oldVal,newVal)** — undo-baar via bestaande CommandHistory; triggert `DataStore.notify('cell', {r,c})` voor partial-update
+- **ClearStyleCommand(r,c,oldStyleObj)** — wist alle style-properties van een cel in 1 atomic command; revert herstelt JSON-deep-copy
+
+### Opmaak-paneel (mutex met Filter + SQL)
+HTML-rij met:
+- **B / I / U / S** style-toggle-knoppen (active-state = gevuld accent, blauw)
+- **Tekst-kleur** `<input type="color">` + `✕` wis-knop
+- **Achtergrond-kleur** `<input type="color">` + `✕` wis-knop
+- **Font-size** dropdown 10/12/14/16/18/24 px
+- **Align** L/C/R toggle-group (mutually exclusive)
+- **`✕ Wis opmaak`** voor alle properties van geselecteerde cel
+- **Summary**: `cel <kolom>@<rij> · N attributen`
+
+### Renderer-integratie
+- `renderAll()`: per cell `td.style.cssText = Styles.cssFor(styleObj)` als `hasAny`
+- `updateCell()`: re-apply style bij content-change (style blijft behouden na cell-edit)
+- Underline + strikethrough samen → 1 `text-decoration: underline line-through`
+
+### UI-wiring
+- `wireFormatPanel()` registreert alle handlers (toggle, picker, dropdown, align, clear)
+- `applyStyleToggle(prop)` — voor B/I/U/S (true ↔ undefined)
+- `applyStyleSet(prop, value)` — voor color/bg/fontSize/align (value of undefined)
+- `applyStyleClear()` — atomic clear via ClearStyleCommand
+- `refreshFormatPanelState()` — knoppen reflect huidige cell-style, disabled wanneer geen selectie of SQL-mode
+- Hook in `onSelectionChanged` → toolbar-state auto-sync
+- Hook in `onSqlChanged` → opmaak-knop disabled in SQL-mode + paneel sluit
+
+### Edge cases gedekt
+- Cell-edit met active style: style behouden, text-content gewijzigd
+- Filter actief: opmaak persistent — gefilterde rij toont nog steeds opmaak
+- SQL-mode: opmaak-paneel sluit + knop disabled + Renderer rendert SQL-result zonder styles (read-only)
+- File-clear: `DataStore.styles = {}` + paneel sluit
+- Style-set met `undefined` op niet-bestaande key → no-op (`oldVal === newVal`)
+- Lege StyleObj → automatisch verwijderd uit storage (sparse)
+- Underline EN strikethrough samen: 1 css-decl `text-decoration: underline line-through`
+
+### File-statistieken na v0.1.3
+- `index.html`: **2.183 regels / 605.243 bytes** (was 1.785/590 KB in v0.1.2)
+- Eigen JS-blok: **50.762 chars** (+10.5KB vs v0.1.2 voor Styles-module + paneel + handlers)
+- PapaParse + AlaSQL onveranderd
+- JS-syntax: alle 3 blokken groen via `new Function()`
+
+### Niet in v0.1.3
+- **`__style_*` CSV-roundtrip** — vereist export-aanpassing; gepland definitief in v0.4.0-Shire (export-dialog met checkbox "Met opmaak" default AAN)
+- Multi-cell range-selectie + bulk opmaak — single-cell MVP
+- Format-painter ("kopieer opmaak") — kan later
+- Conditional formatting (regels) — out of scope
+- Per-rij/per-kolom bulk opmaak in 1 klik — out of scope
+
+### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"**

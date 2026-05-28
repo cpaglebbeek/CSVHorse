@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CSVHorse — CSV viewer &amp; editor</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="CSVHorse v0.1.2-Appaloosa">
+  <meta name="generator" content="CSVHorse v0.1.3-Knabstrupper">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -133,6 +133,73 @@
       font-size:.78rem; color:var(--color-accent-2);
       font-family:var(--font-mono);
     }
+
+    /* Opmaak panel */
+    .opmaak-panel {
+      padding:var(--space-3) var(--space-4);
+      border-bottom:1px solid var(--color-border);
+      background:var(--color-surface);
+      display:none;
+      gap:var(--space-2);
+      align-items:center;
+      flex-wrap:wrap;
+      flex:0 0 auto;
+    }
+    .opmaak-panel.open { display:flex; }
+    .opmaak-panel label {
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:.85rem; color:var(--color-text-dim);
+    }
+    .opmaak-panel .style-btn {
+      font:inherit; color:var(--color-text);
+      background:transparent;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 12px;
+      cursor:pointer;
+      min-width:36px; text-align:center;
+    }
+    .opmaak-panel .style-btn:hover:not([disabled]) { border-color:var(--color-accent); color:var(--color-accent); }
+    .opmaak-panel .style-btn.active {
+      background:var(--color-accent); color:#0a1a14;
+      border-color:var(--color-accent); font-weight:700;
+    }
+    .opmaak-panel .style-btn[disabled] { opacity:.35; cursor:not-allowed; }
+    .opmaak-panel select {
+      font:inherit; color:var(--color-text);
+      background:var(--color-surface-2);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 10px;
+    }
+    .opmaak-panel select:focus { outline:none; border-color:var(--color-accent); }
+    .opmaak-panel input[type="color"] {
+      width:34px; height:30px;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      background:var(--color-surface-2);
+      cursor:pointer;
+      padding:2px;
+    }
+    .opmaak-panel input[type="color"][disabled] { opacity:.35; cursor:not-allowed; }
+    .opmaak-panel .clear-btn {
+      font:inherit; color:var(--color-text-dim);
+      background:transparent;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:4px 8px;
+      cursor:pointer;
+      font-size:.78rem;
+    }
+    .opmaak-panel .clear-btn:hover:not([disabled]) { border-color:var(--color-danger); color:var(--color-danger); }
+    .opmaak-panel .clear-btn[disabled] { opacity:.35; cursor:not-allowed; }
+    .opmaak-panel .sep { width:1px; height:22px; background:var(--color-border); margin:0 var(--space-1); }
+    .opmaak-panel .summary {
+      margin-left:auto;
+      font-size:.78rem; color:var(--color-text-dim);
+      font-family:var(--font-mono);
+    }
+    .opmaak-panel .summary strong { color:var(--color-accent); }
 
     /* SQL panel */
     .sql-panel {
@@ -357,7 +424,7 @@
 
 <header class="app">
   <h1>CSV<span class="accent">Horse</span></h1>
-  <span class="badge">v0.1.2-Appaloosa</span>
+  <span class="badge">v0.1.3-Knabstrupper</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -376,7 +443,7 @@
   <span class="sep"></span>
   <button id="btnFilter" title="UI-filter (kolom -> operator -> waarde)" disabled>⏚ Filter</button>
   <button id="btnSql" title="SQL-panel (AlaSQL: SELECT/WHERE/GROUP BY/ORDER BY/LIMIT/aggregates)" disabled>≡ SQL</button>
-  <button disabled title="Volgt in v0.1.2-Appaloosa">B I U  Opmaak</button>
+  <button id="btnFormat" title="Opmaak-paneel (bold/italic/underline/kleur/font-size/alignment) — vereist celselectie" disabled>B I U  Opmaak</button>
   <button disabled title="Volgt in v0.2.0-Mustang">🔍 Zoek/vervang</button>
   <span class="sep"></span>
   <button id="btnExport" title="Exporteer huidige view als CSV (contextueel: SQL-result / gefilterd / alle data)" disabled>⬇ Exporteer</button>
@@ -405,6 +472,37 @@
   <button class="primary" id="btnApplyFilter">Toepassen</button>
   <button id="btnClearFilter">Wis filter</button>
   <span class="summary" id="filterSummary"></span>
+</div>
+
+<div class="opmaak-panel" id="opmaakPanel" role="region" aria-label="Opmaak">
+  <button class="style-btn" id="btnBold"        title="Bold (toggle)" disabled><b>B</b></button>
+  <button class="style-btn" id="btnItalic"      title="Italic (toggle)" disabled><i>I</i></button>
+  <button class="style-btn" id="btnUnderline"   title="Underline (toggle)" disabled><u>U</u></button>
+  <button class="style-btn" id="btnStrike"      title="Strikethrough (toggle)" disabled><s>S</s></button>
+  <span class="sep"></span>
+  <label>Tekst: <input type="color" id="colorPicker" value="#e6e9ef" disabled></label>
+  <button class="clear-btn" id="btnClearColor" title="Wis tekst-kleur" disabled>✕</button>
+  <label>Achtergrond: <input type="color" id="bgPicker" value="#161a22" disabled></label>
+  <button class="clear-btn" id="btnClearBg" title="Wis achtergrond" disabled>✕</button>
+  <span class="sep"></span>
+  <label>Grootte:
+    <select id="fontSizePicker" disabled>
+      <option value="">standaard</option>
+      <option value="10">10 px</option>
+      <option value="12">12 px</option>
+      <option value="14">14 px</option>
+      <option value="16">16 px</option>
+      <option value="18">18 px</option>
+      <option value="24">24 px</option>
+    </select>
+  </label>
+  <span class="sep"></span>
+  <button class="style-btn" id="btnAlignLeft"   title="Links uitlijnen" disabled>⬅</button>
+  <button class="style-btn" id="btnAlignCenter" title="Centreren" disabled>⇔</button>
+  <button class="style-btn" id="btnAlignRight"  title="Rechts uitlijnen" disabled>⮕</button>
+  <span class="sep"></span>
+  <button class="clear-btn" id="btnClearStyle" title="Wis alle opmaak van geselecteerde cel" disabled>✕ Wis opmaak</button>
+  <span class="summary" id="opmaakSummary">geen cel geselecteerd</span>
 </div>
 
 <div class="sql-panel" id="sqlPanel" role="region" aria-label="SQL">
@@ -449,7 +547,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  CSVHorse v0.1.2-Appaloosa (codenaam Appaloosa) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  CSVHorse v0.1.3-Knabstrupper (codenaam Knabstrupper) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -770,15 +868,17 @@ Expecting `+nr.join(", ")+", got '"+(this.terminals_[Le]||Le)+"'":Tn="Parse erro
  * ============================================================ */
 const DataStore = {
   rows: [], cols: [],
+  styles: {},  /* { rowIdx: { colIdx: StyleObj } } — v0.1.3+ */
   dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' },
   fileName: '',
   load({ rows, cols, dialect, fileName }) {
     this.rows = rows; this.cols = cols;
+    this.styles = {};
     this.dialect = Object.assign({}, this.dialect, dialect || {});
     this.fileName = fileName || '';
     this.notify('load');
   },
-  clear() { this.rows = []; this.cols = []; this.fileName = ''; this.notify('clear'); },
+  clear() { this.rows = []; this.cols = []; this.styles = {}; this.fileName = ''; this.notify('clear'); },
   getCell(r, c) { const row = this.rows[r]; return row ? row[c] : undefined; },
   setCell(r, c, value) {
     while (this.rows[r] && this.rows[r].length <= c) this.rows[r].push('');
@@ -980,6 +1080,86 @@ function SetCellCommand(r, c, oldVal, newVal) {
 }
 
 /* ============================================================
+ * Styles — per-cel opmaak (v0.1.3-Knabstrupper)
+ * StyleObj keys: bold, italic, underline, strikethrough,
+ *                color, background, fontSize, align
+ * Storage in DataStore.styles[r][c] (sparse).
+ * Falsy/empty values worden niet opgeslagen → object schoonhouden.
+ * ============================================================ */
+const Styles = {
+  PROPS: ['bold','italic','underline','strikethrough','color','background','fontSize','align'],
+
+  get(r, c) {
+    const row = DataStore.styles[r];
+    if (!row) return {};
+    return row[c] || {};
+  },
+
+  set(r, c, prop, value) {
+    if (value === null || value === undefined || value === false || value === '') {
+      const row = DataStore.styles[r];
+      if (row && row[c]) {
+        delete row[c][prop];
+        if (Object.keys(row[c]).length === 0) delete row[c];
+        if (Object.keys(row).length === 0) delete DataStore.styles[r];
+      }
+    } else {
+      if (!DataStore.styles[r]) DataStore.styles[r] = {};
+      if (!DataStore.styles[r][c]) DataStore.styles[r][c] = {};
+      DataStore.styles[r][c][prop] = value;
+    }
+  },
+
+  clearCell(r, c) {
+    const row = DataStore.styles[r];
+    if (!row) return false;
+    if (!row[c]) return false;
+    delete row[c];
+    if (Object.keys(row).length === 0) delete DataStore.styles[r];
+    return true;
+  },
+
+  cssFor(s) {
+    if (!s) return '';
+    const parts = [];
+    if (s.bold)        parts.push('font-weight:700');
+    if (s.italic)      parts.push('font-style:italic');
+    /* underline + strikethrough combineren in 1 text-decoration */
+    const td = [];
+    if (s.underline)     td.push('underline');
+    if (s.strikethrough) td.push('line-through');
+    if (td.length)     parts.push('text-decoration:' + td.join(' '));
+    if (s.color)       parts.push('color:' + s.color);
+    if (s.background)  parts.push('background-color:' + s.background);
+    if (s.fontSize)    parts.push('font-size:' + s.fontSize + 'px');
+    if (s.align)       parts.push('text-align:' + s.align);
+    return parts.join(';');
+  },
+
+  hasAny(r, c) {
+    const s = this.get(r, c);
+    return s && Object.keys(s).length > 0;
+  }
+};
+
+function SetStyleCommand(r, c, prop, oldVal, newVal) {
+  return { type:'style', r, c, prop, oldVal, newVal,
+    apply()  { Styles.set(r, c, prop, newVal); DataStore.notify('cell', { r, c }); },
+    revert() { Styles.set(r, c, prop, oldVal); DataStore.notify('cell', { r, c }); } };
+}
+
+function ClearStyleCommand(r, c, oldStyleObj) {
+  return { type:'styleClear', r, c, oldStyleObj,
+    apply()  { Styles.clearCell(r, c); DataStore.notify('cell', { r, c }); },
+    revert() {
+      if (oldStyleObj && Object.keys(oldStyleObj).length > 0) {
+        for (const k in oldStyleObj) Styles.set(r, c, k, oldStyleObj[k]);
+        DataStore.notify('cell', { r, c });
+      }
+    } };
+}
+
+/* ============================================================
  * ExportService — basic CSV export (v0.1.2-Appaloosa)
  * Contextueel: SQL-result / gefilterde view / alle data.
  * Roundtrip-met-__style_* volgt in v0.4.0-Shire.
@@ -1132,6 +1312,10 @@ const Renderer = {
           td.textContent = String(v);
           td.title = String(v);
         }
+        const styleObj = Styles.get(rIdx, i);
+        if (styleObj && Object.keys(styleObj).length > 0) {
+          td.style.cssText = Styles.cssFor(styleObj);
+        }
         tr.appendChild(td);
       }
       tbody.appendChild(tr);
@@ -1200,6 +1384,9 @@ const Renderer = {
     if (!td) return;
     td.textContent = (value == null || value === '') ? '' : String(value);
     td.title = td.textContent;
+    /* Re-apply style (style + selection-class blijven via separate CSS path) */
+    const styleObj = Styles.get(r, c);
+    td.style.cssText = (styleObj && Object.keys(styleObj).length > 0) ? Styles.cssFor(styleObj) : '';
     if (flash) { td.classList.remove('flash'); void td.offsetWidth; td.classList.add('flash'); }
   },
 
@@ -1324,6 +1511,22 @@ const UI = {
       btnFilter:        document.getElementById('btnFilter'),
       btnSql:           document.getElementById('btnSql'),
       btnExport:        document.getElementById('btnExport'),
+      btnFormat:        document.getElementById('btnFormat'),
+      opmaakPanel:      document.getElementById('opmaakPanel'),
+      btnBold:          document.getElementById('btnBold'),
+      btnItalic:        document.getElementById('btnItalic'),
+      btnUnderline:     document.getElementById('btnUnderline'),
+      btnStrike:        document.getElementById('btnStrike'),
+      colorPicker:      document.getElementById('colorPicker'),
+      bgPicker:         document.getElementById('bgPicker'),
+      btnClearColor:    document.getElementById('btnClearColor'),
+      btnClearBg:       document.getElementById('btnClearBg'),
+      fontSizePicker:   document.getElementById('fontSizePicker'),
+      btnAlignLeft:     document.getElementById('btnAlignLeft'),
+      btnAlignCenter:   document.getElementById('btnAlignCenter'),
+      btnAlignRight:    document.getElementById('btnAlignRight'),
+      btnClearStyle:    document.getElementById('btnClearStyle'),
+      opmaakSummary:    document.getElementById('opmaakSummary'),
       filterPanel:      document.getElementById('filterPanel'),
       filterCol:        document.getElementById('filterCol'),
       filterOp:         document.getElementById('filterOp'),
@@ -1362,6 +1565,7 @@ const UI = {
     this.wireFilterPanel();
     this.wireSqlPanel();
     this.wireExportButton();
+    this.wireFormatPanel();
     this.wireDragDrop();
     this.wireTableClicks();
     this.wireKeyboard();
@@ -1412,13 +1616,130 @@ const UI = {
     this.els.btnExport.addEventListener('click', () => ExportService.exportCurrent());
   },
 
+  wireFormatPanel() {
+    this.els.btnFormat.addEventListener('click', () => {
+      const open = this.els.opmaakPanel.classList.toggle('open');
+      this.els.btnFormat.classList.toggle('active', open);
+      if (open) {
+        /* mutex met Filter + SQL panel */
+        this.els.filterPanel.classList.remove('open');
+        this.els.sqlPanel.classList.remove('open');
+        this.els.btnFilter.classList.toggle('active', Filter.isActive());
+        this.els.btnSql.classList.toggle('active', SQLEngine.active);
+        this.refreshFormatPanelState();
+      }
+    });
+
+    /* B/I/U/S toggles */
+    const toggle = (prop) => () => this.applyStyleToggle(prop);
+    this.els.btnBold.addEventListener('click',      toggle('bold'));
+    this.els.btnItalic.addEventListener('click',    toggle('italic'));
+    this.els.btnUnderline.addEventListener('click', toggle('underline'));
+    this.els.btnStrike.addEventListener('click',    toggle('strikethrough'));
+
+    /* Color pickers */
+    this.els.colorPicker.addEventListener('change', (e) => this.applyStyleSet('color', e.target.value));
+    this.els.bgPicker.addEventListener('change',    (e) => this.applyStyleSet('background', e.target.value));
+    this.els.btnClearColor.addEventListener('click', () => this.applyStyleSet('color', null));
+    this.els.btnClearBg.addEventListener('click',    () => this.applyStyleSet('background', null));
+
+    /* Font size */
+    this.els.fontSizePicker.addEventListener('change', (e) => {
+      const v = e.target.value;
+      this.applyStyleSet('fontSize', v === '' ? null : parseInt(v, 10));
+    });
+
+    /* Alignment (mutually exclusive) */
+    this.els.btnAlignLeft.addEventListener('click',   () => this.applyStyleSet('align', 'left'));
+    this.els.btnAlignCenter.addEventListener('click', () => this.applyStyleSet('align', 'center'));
+    this.els.btnAlignRight.addEventListener('click',  () => this.applyStyleSet('align', 'right'));
+
+    /* Wis alle opmaak van cel */
+    this.els.btnClearStyle.addEventListener('click', () => this.applyStyleClear());
+  },
+
+  applyStyleToggle(prop) {
+    if (!Selection.has() || SQLEngine.active) return;
+    const r = Selection.r, c = Selection.c;
+    const cur = Styles.get(r, c)[prop];
+    const next = cur ? false : true;
+    const oldVal = cur || undefined;
+    const newVal = next || undefined;
+    if (oldVal === newVal) return;
+    const cmd = SetStyleCommand(r, c, prop, oldVal, newVal);
+    cmd.apply();
+    CommandHistory.push(cmd);
+  },
+
+  applyStyleSet(prop, value) {
+    if (!Selection.has() || SQLEngine.active) return;
+    const r = Selection.r, c = Selection.c;
+    const cur = Styles.get(r, c)[prop];
+    const oldVal = (cur === undefined || cur === null || cur === false || cur === '') ? undefined : cur;
+    const newVal = (value === null || value === undefined || value === '' || value === false) ? undefined : value;
+    if (oldVal === newVal) return;
+    const cmd = SetStyleCommand(r, c, prop, oldVal, newVal);
+    cmd.apply();
+    CommandHistory.push(cmd);
+  },
+
+  applyStyleClear() {
+    if (!Selection.has() || SQLEngine.active) return;
+    const r = Selection.r, c = Selection.c;
+    const old = Styles.get(r, c);
+    if (!old || Object.keys(old).length === 0) return;
+    const oldCopy = JSON.parse(JSON.stringify(old));
+    const cmd = ClearStyleCommand(r, c, oldCopy);
+    cmd.apply();
+    CommandHistory.push(cmd);
+  },
+
+  refreshFormatPanelState() {
+    const hasSel = Selection.has() && !DataStore.isEmpty() && !SQLEngine.active;
+    const disable = !hasSel;
+    /* Toggle disabled on all controls */
+    const controls = [
+      this.els.btnBold, this.els.btnItalic, this.els.btnUnderline, this.els.btnStrike,
+      this.els.colorPicker, this.els.bgPicker, this.els.btnClearColor, this.els.btnClearBg,
+      this.els.fontSizePicker, this.els.btnAlignLeft, this.els.btnAlignCenter, this.els.btnAlignRight,
+      this.els.btnClearStyle
+    ];
+    for (const el of controls) el.disabled = disable;
+
+    if (!hasSel) {
+      [this.els.btnBold, this.els.btnItalic, this.els.btnUnderline, this.els.btnStrike,
+       this.els.btnAlignLeft, this.els.btnAlignCenter, this.els.btnAlignRight].forEach(b => b.classList.remove('active'));
+      this.els.opmaakSummary.textContent = 'geen cel geselecteerd';
+      return;
+    }
+
+    const r = Selection.r, c = Selection.c;
+    const s = Styles.get(r, c);
+    this.els.btnBold.classList.toggle('active',       !!s.bold);
+    this.els.btnItalic.classList.toggle('active',     !!s.italic);
+    this.els.btnUnderline.classList.toggle('active',  !!s.underline);
+    this.els.btnStrike.classList.toggle('active',     !!s.strikethrough);
+    this.els.btnAlignLeft.classList.toggle('active',   s.align === 'left');
+    this.els.btnAlignCenter.classList.toggle('active', s.align === 'center');
+    this.els.btnAlignRight.classList.toggle('active',  s.align === 'right');
+    if (s.color)      this.els.colorPicker.value = s.color;
+    if (s.background) this.els.bgPicker.value    = s.background;
+    this.els.fontSizePicker.value = s.fontSize ? String(s.fontSize) : '';
+    const colName = DataStore.cols[c] || `col_${c + 1}`;
+    const props = Object.keys(s).length;
+    this.els.opmaakSummary.innerHTML =
+      `cel <strong>${colName}</strong>@${r + 1} · ${props === 0 ? 'geen opmaak' : props + ' attribu' + (props === 1 ? 'ut' : 'ten')}`;
+  },
+
   wireFilterPanel() {
     this.els.btnFilter.addEventListener('click', () => {
       const open = this.els.filterPanel.classList.toggle('open');
       this.els.btnFilter.classList.toggle('active', open);
       if (open) {
         this.els.sqlPanel.classList.remove('open');
-        this.els.btnSql.classList.remove('active');
+        this.els.btnSql.classList.toggle('active', SQLEngine.active);
+        this.els.opmaakPanel.classList.remove('open');
+        this.els.btnFormat.classList.remove('active');
         this.repopulateFilterColumns();
         setTimeout(() => this.els.filterVal.focus(), 50);
       }
@@ -1439,6 +1760,8 @@ const UI = {
       if (open) {
         this.els.filterPanel.classList.remove('open');
         this.els.btnFilter.classList.toggle('active', Filter.isActive());
+        this.els.opmaakPanel.classList.remove('open');
+        this.els.btnFormat.classList.remove('active');
         if (!this.els.sqlText.value.trim()) {
           this.els.sqlText.value = 'SELECT * FROM data LIMIT 50';
         }
@@ -1724,6 +2047,9 @@ const UI = {
       this.els.btnFilter.disabled = true;
       this.els.btnSql.disabled = true;
       this.els.btnExport.disabled = true;
+      this.els.btnFormat.disabled = true;
+      this.els.opmaakPanel.classList.remove('open');
+      this.els.btnFormat.classList.remove('active');
       this.els.stats.textContent = 'geen data';
       this.els.phaseBadge.textContent = 'leeg';
       this.els.phaseBadge.classList.remove('filter-on', 'sql-on');
@@ -1743,6 +2069,7 @@ const UI = {
     this.els.btnFilter.disabled = false;
     this.els.btnSql.disabled = false;
     this.els.btnExport.disabled = false;
+    this.els.btnFormat.disabled = SQLEngine.active;
     Renderer.renderAll();
     this.updateStats();
     this.refreshPhaseBadge();
@@ -1757,6 +2084,7 @@ const UI = {
 
   onSelectionChanged() {
     this.els.btnEdit.disabled = !Selection.has() || DataStore.isEmpty() || SQLEngine.active;
+    this.refreshFormatPanelState();
     this.updateStats();
   },
 
@@ -1782,6 +2110,12 @@ const UI = {
     this.els.btnUndo.disabled = !CommandHistory.canUndo() || SQLEngine.active;
     this.els.btnRedo.disabled = !CommandHistory.canRedo() || SQLEngine.active;
     this.els.btnSql.classList.toggle('sql-active', SQLEngine.active);
+    this.els.btnFormat.disabled = SQLEngine.active;
+    if (SQLEngine.active) {
+      this.els.opmaakPanel.classList.remove('open');
+      this.els.btnFormat.classList.remove('active');
+    }
+    this.refreshFormatPanelState();
     this.els.sqlSummary.textContent = SQLEngine.active
       ? SQLEngine.describe()
       : '';
