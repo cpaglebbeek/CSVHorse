@@ -46,6 +46,15 @@ jobs:
             --exclude='.github' \
             --exclude='prompts' \
             sheethorse/ _site/sheethorse/
+          # Architectuur-viewers als index.html in /architectuur/{csvhorse,sheethorse}/
+          mkdir -p _site/architectuur/csvhorse _site/architectuur/sheethorse
+          cp csvhorse-main/architectuur/CSVHorse_viewer.html _site/architectuur/csvhorse/index.html
+          if [ -f sheethorse/architectuur/SheetHorse_viewer.html ]; then
+            cp sheethorse/architectuur/SheetHorse_viewer.html _site/architectuur/sheethorse/index.html
+          else
+            # Fallback: kopie van CSVHorse-viewer met label-shift
+            sed 's|CSVHorse architectuur|SheetHorse architectuur|g; s|CSVHorse — ArchiMate viewer|SheetHorse — ArchiMate viewer|g; s|<title>CSVHorse — ArchiMate Viewer.*</title>|<title>SheetHorse — ArchiMate Viewer (full variant)</title>|' csvhorse-main/architectuur/CSVHorse_viewer.html > _site/architectuur/sheethorse/index.html
+          fi
           # Landing-index met links naar beide
           cat > _site/landing.html <<'HTMLEOF'
           <!DOCTYPE html>
