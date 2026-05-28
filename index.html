@@ -527,6 +527,16 @@
     }
     table.grid thead th.filtered { color:var(--color-accent-2); }
     table.grid thead th.filtered::after { content:" ⏚"; }
+    table.grid thead th:not(.row-idx) { cursor:pointer; user-select:none; }
+    table.grid thead th:not(.row-idx):hover { color:var(--color-text); }
+    table.grid thead th.editing {
+      background:var(--color-edit-active) !important;
+      color:var(--color-text) !important;
+      outline:2px solid var(--color-accent);
+      outline-offset:-2px;
+      cursor:text;
+      user-select:text;
+    }
     table.grid.sql-result thead th { color:#f0c674; }
     table.grid tbody td {
       padding:var(--space-2) var(--space-3);
@@ -1572,6 +1582,15 @@ function SetCellCommand(r, c, oldVal, newVal) {
     revert() { DataStore.setCell(r, c, oldVal); } };
 }
 
+/* Kolomnaam-bewerking (v0.2.0.3) — undo-baar via SetColNameCommand.
+   Bij naam-wijziging: DataStore.cols[c] = newVal + notify('cols').
+   r-veld op null voor batch-undo logica (cosmetic). */
+function SetColNameCommand(c, oldVal, newVal) {
+  return { type:'colname', r:null, c, oldVal, newVal,
+    apply()  { DataStore.cols[c] = newVal; DataStore.notify('cols', { c }); },
+    revert() { DataStore.cols[c] = oldVal; DataStore.notify('cols', { c }); } };
+}
+
 /* ============================================================
  * Styles — per-cel opmaak (v0.1.3-Knabstrupper)
  * StyleObj keys: bold, italic, underline, strikethrough,
@@ -2189,7 +2208,8 @@ const Renderer = {
     for (let i = 0; i < DataStore.cols.length; i++) {
       const th = document.createElement('th');
       th.textContent = DataStore.cols[i];
-      th.title = DataStore.cols[i];
+      th.title = (DataStore.cols[i] || '') + ' — dubbelklik om naam te bewerken';
+      th.dataset.c = i;
       if (i === filteredCol) th.classList.add('filtered');
       trh.appendChild(th);
     }
@@ -2298,6 +2318,11 @@ const Renderer = {
   getCellEl(r, c) {
     if (!this.tableEl) return null;
     return this.tableEl.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+  },
+
+  getHeaderEl(c) {
+    if (!this.tableEl) return null;
+    return this.tableEl.querySelector(`thead th[data-c="${c}"]`);
   },
 
   applySearchHighlights() {
@@ -2416,6 +2441,62 @@ const EditController = {
     td.blur();
     this.active = null;
     Renderer.updateCell(r, c, oldVal, false);
+  },
+
+  /* === Header-edit (kolomnaam) — v0.2.0.3 === */
+  activeHeader: null,
+  isEditingHeader() { return this.activeHeader !== null; },
+  beginColEdit(c) {
+    if (SQLEngine.active) { UI.showToast('SQL-resultaat is read-only; Wis SQL om de header te bewerken', 'warn'); return; }
+    if (this.activeHeader) this.commitColEdit();
+    if (this.active) this.commit();
+    if (DataStore.isEmpty()) return;
+    const th = Renderer.getHeaderEl ? Renderer.getHeaderEl(c) : null;
+    if (!th) return;
+    const oldVal = DataStore.cols[c];
+    th.classList.add('editing');
+    th.setAttribute('contenteditable', 'true');
+    th.textContent = oldVal == null ? '' : String(oldVal);
+    th.focus();
+    const range = document.createRange();
+    range.selectNodeContents(th);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    this.activeHeader = { c, th, oldVal };
+  },
+  commitColEdit() {
+    if (!this.activeHeader) return;
+    const { c, th, oldVal } = this.activeHeader;
+    let raw = th.textContent.trim();
+    if (raw === '') raw = 'col_' + (c + 1);
+    /* Uniek-check: andere kolommen mogen niet dezelfde naam hebben */
+    let candidate = raw;
+    let suffix = 1;
+    while (DataStore.cols.some((x, i) => i !== c && x === candidate)) {
+      suffix++;
+      candidate = raw + '_' + suffix;
+    }
+    th.classList.remove('editing');
+    th.removeAttribute('contenteditable');
+    th.blur();
+    this.activeHeader = null;
+    if (candidate !== oldVal) {
+      const cmd = SetColNameCommand(c, oldVal, candidate);
+      cmd.apply();
+      CommandHistory.push(cmd);
+      if (candidate !== raw) UI.showToast(`Kolomnaam aangepast naar "${candidate}" (duplicaat vermeden)`, 'info');
+    } else {
+      th.textContent = oldVal == null ? '' : String(oldVal);
+    }
+  },
+  cancelColEdit() {
+    if (!this.activeHeader) return;
+    const { c, th, oldVal } = this.activeHeader;
+    th.classList.remove('editing');
+    th.removeAttribute('contenteditable');
+    th.blur();
+    this.activeHeader = null;
+    th.textContent = oldVal == null ? '' : String(oldVal);
   }
 };
 
@@ -3325,6 +3406,15 @@ const UI = {
         this.showToast('SQL-resultaat is read-only; Wis SQL om weer te bewerken', 'warn');
         return;
       }
+      /* Header-edit: dubbelklik op th (kolomnaam) — v0.2.0.3 */
+      const th = e.target.closest('th');
+      if (th && th.dataset && th.dataset.c != null) {
+        const c = parseInt(th.dataset.c, 10);
+        if (!isNaN(c)) {
+          EditController.beginColEdit(c);
+          return;
+        }
+      }
       const td = e.target.closest('td');
       if (!td || td.classList.contains('row-idx')) return;
       const r = parseInt(td.dataset.r, 10);
@@ -3352,6 +3442,18 @@ const UI = {
         e.preventDefault();
         if (EditController.isEditing()) EditController.commit();
         this.redo(); return;
+      }
+
+      /* Header-edit: Enter commit / Escape cancel (v0.2.0.3) */
+      if (EditController.isEditingHeader()) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          EditController.commitColEdit();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          EditController.cancelColEdit();
+        }
+        return;
       }
 
       if (EditController.isEditing()) {
@@ -3506,6 +3608,14 @@ const UI = {
       return;
     }
 
+    if (kind === 'cols') {
+      /* Kolomnaam-wijziging: re-render volledig + sync filter/SQL-builder panels */
+      Renderer.renderAll();
+      if (this.els.filterPanel && this.els.filterPanel.classList.contains('open')) this.repopulateFilterColumns();
+      if (this.els.sqlBuilder && this.els.sqlBuilder.classList.contains('open')) this.refreshBuilderColumns();
+      this.updateStats();
+      return;
+    }
     if (kind === 'cell' && payload && !SQLEngine.active) {
       Renderer.updateCell(payload.r, payload.c, store.getCell(payload.r, payload.c), true);
       this.updateStats();

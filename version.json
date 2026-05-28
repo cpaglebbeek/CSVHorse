@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0.2",
+  "version": "0.2.0.3",
   "codename": "Mustang",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 9 + patch: autosave UIT wist snapshot · lege CSV starten via dialog (kolom/rij-aantal)"
+  "phase": "MVP-stap 9 + patch: aanpasbare kolomnamen (header-edit) via dubbelklik op th — SetColNameCommand undo-baar, uniek-check, auto-rename bij duplicate"
 }
