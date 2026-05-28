@@ -2,7 +2,7 @@
 
 ## Huidige fase
 
-**v0.1.5-Tinker** — visuele SQL query-builder (dropdowns voor SELECT/WHERE/GROUP BY/ORDER BY/LIMIT) bovenop het bestaande SQL-paneel.
+**v0.2.0-Mustang** — autosave naar localStorage (throttled + AAN/UIT) + zoek/vervang dialog (regex/case/scope/vervang alle) — **oranje versiebump**.
 
 | Aspect | Status |
 |--------|--------|
@@ -42,13 +42,17 @@
 | Export-dialog modal (filename + checkbox met-opmaak + BOM) | ✓ |
 | Import herkent `__style_*` automatisch | ✓ |
 | Filter-mode → styles meegemapt naar gefilterde rij-indexen | ✓ |
-| **SQL query-builder (visuele clauses)** | ✓ **werkend** (v0.1.5-Tinker) |
-| **SELECT */-cols + aggregates (COUNT/SUM/AVG/MIN/MAX)** | ✓ |
-| **WHERE clauses met 11 operators + AND/OR-logica** | ✓ |
-| **GROUP BY + ORDER BY (dynamische lijstjes)** | ✓ |
-| **LIMIT** | ✓ |
-| **`Bouw query` of `Bouw + Run` one-shot** | ✓ |
-| Autosave + zoek/vervang | ⏸ v0.2.0-Mustang |
+| SQL query-builder (visuele clauses) | ✓ v0.1.5-Tinker |
+| SELECT */-cols + aggregates (COUNT/SUM/AVG/MIN/MAX) | ✓ |
+| WHERE clauses met 11 operators + AND/OR-logica | ✓ |
+| GROUP BY + ORDER BY (dynamische lijstjes) | ✓ |
+| LIMIT | ✓ |
+| `Bouw query` of `Bouw + Run` one-shot | ✓ |
+| **Autosave naar localStorage (throttled 2s, AAN/UIT toggle)** | ✓ **werkend** (v0.2.0-Mustang) |
+| **Restore-banner bij page-load met data in storage** | ✓ |
+| **Zoek/vervang met regex + case-toggle + scope + volgende/vorige** | ✓ |
+| **Vervang alle = 1 atomic batch-command (1 undo-step)** | ✓ |
+| **Visuele highlights `.search-hit` + `.search-current`** | ✓ |
 | Virtual scrolling 100k+ | ⏸ v0.3.0-Haflinger |
 | Export met `__style_*` roundtrip | ⏸ v0.4.0-Shire |
 | Deployment `icthorse.nl/CSVHorse/` | ⏸ v0.5.0-Hanoverian |
@@ -84,6 +88,7 @@
 | 2026-05-28 | 0.1.1.1 | B-002 fix (groen): SQL-panel werkte niet — `alasql(query, [objects])` bindt alleen aan `FROM ?`, niet `FROM data` letterlijk. Fix: `alasql.tables.data.data = objects` registreren vóór elke run. Patroon SQL-002 vastgelegd in BUGLIST. |
 | 2026-05-28 | 0.1.2-Appaloosa | **Scope-shift**: Appaloosa = basic CSV export (was opmaak). ExportService-module met `exportCurrent()`: contextuele mode-detectie (SQL-active → `sql` / Filter-active → `filtered` / anders → `all`), `Papa.unparse()` met DataStore.dialect.delimiter behoud, Blob → browser-download. Bestandsnaam-template `<basis>_<modus>_<YYYYMMDD_HHMM>.csv`. Toast met rij-aantal + filename. Toolbar ⬇ Exporteer-knop enabled bij data-load. Opmaak verschoven naar v0.1.3 (codenaam bij die release). **Groen versiebump**. |
 | 2026-05-28 | 0.1.4.1 | B-003 (groen) gediagnoseerd: opmaak verdwijnt bij re-import = **browser-cache** (zelfde patroon als B-001 CDN-cache, nu client-side). Geen code-fix nodig — `Ctrl/Cmd+Shift+R` lost het op. Patroon DEPLOY-CACHE-002 vastgelegd in BUGLIST. Diagnostic logging + toast "opmaak hersteld: N cellen" toegevoegd voor toekomstige debug. |
+| 2026-05-28 | 0.2.0-Mustang | **Oranje versiebump** — twee features in 1 release: (1) AutosaveService — throttled (2 sec) localStorage-snapshot van DataStore (rows/cols/styles/dialect/fileName), AAN/UIT toggle in toolbar (💾 Auto), quota-check met auto-disable, restore-banner bij page-load met data in storage; (2) SearchReplace — apart paneel (mutex met andere panelen) met query/replace inputs, scope (alle/kolom/selectie), regex-toggle, case-sensitive toggle, volgende/vorige/vervang/vervang-alle. Vervang-alle = 1 atomic BatchCommand (1 undo-step). Visuele highlights via `.search-hit` + `.search-current` classes. Live re-scan bij input-changes. Renderer.applySearchHighlights na renderAll. 4 functionele test-scenario's bevestigd correct (case-insensitive zoek, case-sensitive, regex ^[A-Z], vervang). Codenaam Mustang (Amerikaans wild paard — robuust + autonoom = past bij persistence + zelfstandige zoek-functie). |
 | 2026-05-28 | 0.1.5-Tinker | Visuele SQL query-builder bovenop bestaand SQL-paneel. SQLBuilder-module (state → SQL-string) met 5 clauses: SELECT (alle of multi-select kolommen + per-kolom aggregate COUNT/SUM/AVG/MIN/MAX) · WHERE (dynamisch lijst conditions; kolom + 11 operators incl. LIKE/NOT LIKE/BETWEEN/IS NULL/IS NOT NULL; AND/OR-logica) · GROUP BY (multi-select) · ORDER BY (dynamisch lijst kolom+ASC/DESC) · LIMIT (numeric). Toggle `🧩 Builder`-knop in SQL-paneel; Add/✕-buttons voor where/order rijen. Drie hoofdacties: `⤵ Bouw query → textarea` · `Wis builder` · `⤵▶ Bouw + Run` (one-shot). Identifiers ge-escapeerd met `[...]`-brackets (AlaSQL syntax). 5 functionele test-scenario's via Node bevestigd correct (LIMIT, SELECT+WHERE, GROUP+COUNT, BETWEEN+IS NULL, WHERE OR). Codenaam Tinker (Gypsy Vanner / Irish Cob, sierlijk + krachtig). **Groen versiebump**. |
 | 2026-05-28 | 0.1.4-Trakehner | **Scope-shift** v0.4.0-Shire → v0.1.4: `__style_*` CSV-roundtrip nu live. IO.flattenStyles (export) + IO.liftStyles (import) round-trippen DataStore.styles via prefix-kolomnamen `__style_<prop>__<colname>`. Export-dialog modal met filename-input, "[x] Met opmaak" checkbox (default AAN, disabled bij SQL-mode), "[] UTF-8 BOM" checkbox. Roundtrip getest via Node-simulatie — 100% identiek styles-object voor en na. Filter-mode behoudt styles na re-mapping naar gefilterde indexen. Stats-counter toont `opmaak:N cellen`. Codenaam Trakehner (Duits sport-paard, betrouwbaar = "import wat geëxporteerd is"). **Groen versiebump**. v0.4.0-Shire scope vrijgegeven voor toekomstige feature. |
 | 2026-05-28 | 0.1.3-Knabstrupper | Opmaak per cel: Styles-module + DataStore.styles{} sparse-storage. SetStyleCommand + ClearStyleCommand voor undo-baar. Opmaak-paneel (derde panel mutex met Filter + SQL): B/I/U/S toggle-knoppen, native `<input type="color">` voor tekst+achtergrond, font-size dropdown (10/12/14/16/18/24 px), alignment (L/C/R), "✕ Wis opmaak". Knoppen reflect huidige selectie-style (active class). Renderer past `Styles.cssFor()` inline toe in zowel `renderAll` als `updateCell`. Underline + strikethrough samen in 1 text-decoration. Opmaak persistent na cell-edit. Gedisabled in SQL-mode. **Geen `__style_*`-roundtrip in CSV-export nog — gepland v0.4.0-Shire**. Codenaam Knabstrupper (gespikkeld ras, past visueel bij opmaak). **Groen versiebump**. |

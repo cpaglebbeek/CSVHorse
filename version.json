@@ -1,7 +1,7 @@
 {
-  "version": "0.1.5",
-  "codename": "Tinker",
+  "version": "0.2.0",
+  "codename": "Mustang",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 8: SQL query-builder (visuele clauses naast textarea — SELECT/WHERE/GROUP BY/ORDER BY/LIMIT met dropdowns)"
+  "phase": "MVP-stap 9: autosave naar localStorage (throttled + AAN/UIT) + zoek/vervang dialog (regex/case/scope/volgende/vorige/vervang alle)"
 }

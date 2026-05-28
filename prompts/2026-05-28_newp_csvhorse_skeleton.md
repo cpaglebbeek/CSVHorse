@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"
+resume: "verder met CSVHorse v0.3.0-Haflinger: virtual scrolling 100k+ rijen — vaste rij-hoogte + DOM-recycling; oranje versiebump"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -576,6 +576,74 @@ Alle kolomnamen ge-escapeerd met `[...]`-brackets (AlaSQL native syntax) zodat k
 
 ### Resume-trigger (overschrijft)
 **"verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"**
+
+## v0.2.0-Mustang (elfde deelopdracht: autosave + zoek/vervang)
+
+**Prompt:** *"volgende versie"* → WhatIf met 5 defaults → *"ja, ga door"*.
+
+### Toegevoegd
+- **AutosaveService module** — `enabled` flag · throttled `schedule()`/`_save()` met 2-sec debounce · `load()`/`clearStorage()`/`hasStored()` · pref onthouden in `csvhorse:autosave:enabled` localStorage key · auto-disable bij QuotaExceededError + 1x toast
+- **localStorage key:** `csvhorse:autosave:v1` met snapshot `{v, rows, cols, styles, dialect, fileName, ts}`
+- **SearchReplace module** — `state{query,replace,scope,regex,caseSensitive}` · `scan()`/`next()`/`prev()`/`replaceOne()`/`replaceAll()`/`clear()`. Scope: `all` (alle visible rijen) / `col` (huidige kolom uit Selection) / `selection` (alleen geselecteerde cel). Regex met try-catch → error in summary bij bad regex.
+- **BatchCommand factory** — atomic multi-cell mutation; revert in omgekeerde volgorde; voor "Vervang alle" → 1 undo-step
+- **Renderer.applySearchHighlights()** — clear oude `.search-hit/.search-current`; toegevoegd na elke `renderAll`; auto-scroll current match into view
+- **DataStore.notify('cell', {r,c})**-hook → `AutosaveService.schedule()` voor elke mutatie
+
+### Toolbar
+- **`💾 Auto AAN/UIT`** knop met `last-saved-tijd` (bv `💾 Auto · 14:32:15`); class `.on` (groen accent) / `.off` (dim)
+- **`🔍 Zoek/vervang`** knop wordt actief na data-load
+
+### Search-paneel
+- Query + Replace inputs (monospace)
+- Scope-dropdown: Alle / Huidige kolom / Selectie
+- `[ ] regex` · `[ ] hoofdletter-gevoelig` checkboxes
+- `← Vorige` · `Volgende →` · `Vervang` · `Vervang alle` buttons
+- Summary rechts: `match X van N` of `geen match voor "X"` of `⚠ regex-fout`
+- Keyboard: Enter=next, Shift+Enter=prev, Escape=sluit paneel
+- Live re-scan bij elke input-wijziging
+
+### Restore-banner
+- Bij init: `checkRestoreBanner()` → toont gele banner als `localStorage` snapshot bevat
+- Banner-tekst: `<bestand> — N × M, opgeslagen <tijd>`
+- Buttons: `Hervat` (load snapshot in DataStore) · `Nieuw beginnen` (wis storage)
+- Verdwijnt zodra data geladen
+
+### Visuele highlights
+- `.search-hit` — geel onderstreep (`box-shadow: inset 0 -3px 0 #f0c674`)
+- `.search-current` — gele transparante bg + outline (sterker, focus)
+
+### Test (Node, 4 scenario's)
+| Test | Resultaat |
+|------|-----------|
+| Zoek "a" (case-insensitive) | 6 matches |
+| Zoek "a" case-sensitive | 6 matches (data toevallig allemaal lowercase 'a') |
+| Regex `^[A-Z]` | 8 matches (eerste tekens = hoofdletters) |
+| Vervang "Haarlem" → "Haarlemmermeer" via `_replaceInCell` | "Haarlem" → "Haarlemmermeer" ✓ |
+
+### Edge cases gedekt
+- Bad regex → summary toont `⚠ <error>`; buttons disabled
+- File-clear → SearchReplace.clear() + Renderer highlights weg + AutosaveService.clearStorage()
+- SQL-mode → Search-paneel disabled (zoek werkt alleen op editable data)
+- Filter-actief → scope `all` itereert alleen visible rows
+- Selection ontbreekt + scope=`col`/`selection` → valt terug op all-scope rijen
+- Quota exceeded → autosave auto-disable + pref persistent uit + 1x toast (geen spam)
+- Page-reload met snapshot → restore-banner; vrijwillige hervat
+
+### File-statistieken na v0.2.0
+- `index.html`: **3.556 regels / 657 KB** (was 2.954 / 635 KB)
+- Eigen JS-blok: **88.208 chars** (+16KB voor Autosave + Search)
+- PapaParse + AlaSQL onveranderd
+- JS-syntax: alle 3 blokken groen
+
+### Niet in v0.2.0
+- Multi-tab autosave-conflict-detectie (later)
+- Per-bestand autosave-storage (alleen vast key)
+- Find-by-style (zoek op opmaak) — out of scope
+- Regex met capture-groups in replace ($1, $2) — alleen plain replace
+- Export/import van localStorage-state — gebruik CSV-export
+
+### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.3.0-Haflinger: virtual scrolling 100k+ rijen — vaste rij-hoogte + DOM-recycling; oranje versiebump"**
 
 ## v0.1.4-Trakehner (negende deelopdracht: `__style_*` CSV-roundtrip + export-dialog)
 

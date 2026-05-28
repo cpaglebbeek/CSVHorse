@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CSVHorse — CSV viewer &amp; editor</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="CSVHorse v0.1.5-Tinker">
+  <meta name="generator" content="CSVHorse v0.2.0-Mustang">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -201,6 +201,111 @@
     }
     .opmaak-panel .summary strong { color:var(--color-accent); }
 
+    /* Search panel + autosave (v0.2.0-Mustang) */
+    .search-panel {
+      padding:var(--space-3) var(--space-4);
+      border-bottom:1px solid var(--color-border);
+      background:var(--color-surface);
+      display:none;
+      gap:var(--space-2);
+      align-items:center;
+      flex-wrap:wrap;
+      flex:0 0 auto;
+    }
+    .search-panel.open { display:flex; }
+    .search-panel label {
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:.85rem; color:var(--color-text-dim);
+    }
+    .search-panel input[type="text"] {
+      font:inherit; color:var(--color-text);
+      background:var(--color-surface-2);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 10px;
+      min-width:180px;
+      font-family:var(--font-mono);
+    }
+    .search-panel input[type="text"]:focus { outline:none; border-color:var(--color-search-hit); }
+    .search-panel select {
+      font:inherit; color:var(--color-text);
+      background:var(--color-surface-2);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 10px;
+      min-width:120px;
+    }
+    .search-panel input[type="checkbox"] {
+      width:16px; height:16px; cursor:pointer;
+      accent-color:var(--color-search-hit);
+    }
+    .search-panel button {
+      font:inherit; color:var(--color-text);
+      background:transparent;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:6px 10px;
+      cursor:pointer;
+    }
+    .search-panel button:hover:not([disabled]) { border-color:var(--color-search-hit); color:var(--color-search-hit); }
+    .search-panel button.primary {
+      background:var(--color-search-hit); color:#241b0a; border-color:var(--color-search-hit); font-weight:600;
+    }
+    .search-panel button.primary:hover { background:#f5d699; }
+    .search-panel button[disabled] { opacity:.35; cursor:not-allowed; }
+    .search-panel .sep { width:1px; height:22px; background:var(--color-border); margin:0 var(--space-1); }
+    .search-panel .summary {
+      margin-left:auto;
+      font-size:.78rem; color:var(--color-search-hit);
+      font-family:var(--font-mono);
+    }
+
+    /* Search highlight in cellen */
+    table.grid tbody td.search-hit {
+      box-shadow:inset 0 -3px 0 var(--color-search-hit);
+    }
+    table.grid tbody td.search-current {
+      background:rgba(240,198,116,0.25) !important;
+      outline:2px solid var(--color-search-hit);
+      outline-offset:-2px;
+    }
+
+    /* Autosave-indicator */
+    .toolbar button#btnAutosave.on {
+      color:var(--color-accent);
+      border-color:var(--color-accent);
+    }
+    .toolbar button#btnAutosave.off {
+      color:var(--color-text-dim);
+    }
+
+    /* Restore-banner */
+    .restore-banner {
+      padding:var(--space-2) var(--space-4);
+      background:#3a2a14;
+      border-bottom:1px solid #c08020;
+      color:#f0c674;
+      display:none;
+      gap:var(--space-3);
+      align-items:center;
+      flex:0 0 auto;
+      font-size:.85rem;
+    }
+    .restore-banner.open { display:flex; }
+    .restore-banner button {
+      font:inherit; color:#241b0a;
+      background:var(--color-accent);
+      border:1px solid var(--color-accent);
+      border-radius:var(--radius-sm);
+      padding:5px 12px; cursor:pointer; font-weight:600;
+    }
+    .restore-banner button:hover { background:#7ad8be; }
+    .restore-banner button.secondary {
+      background:transparent; color:var(--color-text-dim);
+      border-color:var(--color-border); font-weight:400;
+    }
+    .restore-banner button.secondary:hover { color:var(--color-text); border-color:var(--color-text); }
+
     /* SQL panel */
     .sql-panel {
       padding:var(--space-3) var(--space-4);
@@ -265,7 +370,7 @@
       color:var(--color-danger); font-family:var(--font-mono); font-size:.78rem;
     }
 
-    /* SQL builder (v0.1.5-Tinker) */
+    /* SQL builder (v0.2.0-Mustang) */
     .sql-builder {
       padding:var(--space-3);
       background:var(--color-surface-2);
@@ -586,7 +691,7 @@
 
 <header class="app">
   <h1>CSV<span class="accent">Horse</span></h1>
-  <span class="badge">v0.1.5-Tinker</span>
+  <span class="badge">v0.2.0-Mustang</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -606,7 +711,8 @@
   <button id="btnFilter" title="UI-filter (kolom -> operator -> waarde)" disabled>⏚ Filter</button>
   <button id="btnSql" title="SQL-panel (AlaSQL: SELECT/WHERE/GROUP BY/ORDER BY/LIMIT/aggregates)" disabled>≡ SQL</button>
   <button id="btnFormat" title="Opmaak-paneel (bold/italic/underline/kleur/font-size/alignment) — vereist celselectie" disabled>B I U  Opmaak</button>
-  <button disabled title="Volgt in v0.2.0-Mustang">🔍 Zoek/vervang</button>
+  <button id="btnSearch" title="Zoek en vervang (regex/case/scope)" disabled>🔍 Zoek/vervang</button>
+  <button id="btnAutosave" title="Autosave AAN/UIT (localStorage)" disabled>💾 Auto</button>
   <span class="sep"></span>
   <button id="btnExport" title="Exporteer huidige view als CSV (contextueel: SQL-result / gefilterd / alle data)" disabled>⬇ Exporteer</button>
   <span class="stats" id="stats">geen data</span>
@@ -634,6 +740,33 @@
   <button class="primary" id="btnApplyFilter">Toepassen</button>
   <button id="btnClearFilter">Wis filter</button>
   <span class="summary" id="filterSummary"></span>
+</div>
+
+<div class="restore-banner" id="restoreBanner" role="alert">
+  <span>💾 Eerdere sessie gevonden in localStorage:</span>
+  <span id="restoreInfo"></span>
+  <button id="btnRestore">Hervat</button>
+  <button id="btnRestoreDismiss" class="secondary">Nieuw beginnen</button>
+</div>
+
+<div class="search-panel" id="searchPanel" role="region" aria-label="Zoek en vervang">
+  <label>Zoek: <input type="text" id="searchQuery" placeholder="zoekterm" autocomplete="off"></label>
+  <label>Vervang met: <input type="text" id="searchReplace" placeholder="vervang-met" autocomplete="off"></label>
+  <label>Scope:
+    <select id="searchScope">
+      <option value="all">Alle cellen</option>
+      <option value="col">Huidige kolom</option>
+      <option value="selection">Selectie</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="searchRegex"> regex</label>
+  <label><input type="checkbox" id="searchCase"> hoofdletter-gevoelig</label>
+  <span class="sep"></span>
+  <button id="btnSearchPrev" title="Vorige match (Shift+Enter)">← Vorige</button>
+  <button id="btnSearchNext" title="Volgende match (Enter)" class="primary">Volgende →</button>
+  <button id="btnReplaceOne" title="Vervang huidige match">Vervang</button>
+  <button id="btnReplaceAll" title="Vervang alle matches (1 undo-step)">Vervang alle</button>
+  <span class="summary" id="searchSummary">geen zoekterm</span>
 </div>
 
 <div class="opmaak-panel" id="opmaakPanel" role="region" aria-label="Opmaak">
@@ -784,7 +917,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  CSVHorse v0.1.5-Tinker (codenaam Tinker) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  CSVHorse v0.2.0-Mustang (codenaam Mustang) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1498,6 +1631,256 @@ function ClearStyleCommand(r, c, oldStyleObj) {
     } };
 }
 
+/* BatchCommand factory — voor multi-cell ops (zoals "vervang alle") */
+function BatchCommand(commands, label) {
+  return {
+    type: 'batch',
+    label: label || 'batch',
+    commands,
+    /* Cosmetics: pretend de "current cell" is de eerste in de batch */
+    get r() { return commands[0] ? commands[0].r : null; },
+    get c() { return commands[0] ? commands[0].c : null; },
+    apply()  { for (const c of commands) c.apply(); },
+    revert() { for (let i = commands.length - 1; i >= 0; i--) commands[i].revert(); }
+  };
+}
+
+/* ============================================================
+ * AutosaveService — throttled localStorage snapshot (v0.2.0-Mustang)
+ * ============================================================ */
+const AutosaveService = {
+  KEY: 'csvhorse:autosave:v1',
+  ENABLED_KEY: 'csvhorse:autosave:enabled',
+  enabled: true,   /* default AAN */
+  _timer: null,
+  _lastSaved: 0,
+  _quotaWarned: false,
+
+  init() {
+    try {
+      const pref = localStorage.getItem(this.ENABLED_KEY);
+      if (pref === 'false') this.enabled = false;
+    } catch (e) { /* localStorage niet beschikbaar */ }
+    this.notify();
+  },
+
+  schedule() {
+    if (!this.enabled) return;
+    if (this._timer) clearTimeout(this._timer);
+    this._timer = setTimeout(() => this._save(), 2000);
+  },
+
+  _save() {
+    this._timer = null;
+    if (!this.enabled) return;
+    if (DataStore.isEmpty()) { this.clearStorage(); return; }
+    try {
+      const snap = {
+        v: 1,
+        rows: DataStore.rows,
+        cols: DataStore.cols,
+        styles: DataStore.styles,
+        dialect: DataStore.dialect,
+        fileName: DataStore.fileName,
+        ts: Date.now()
+      };
+      localStorage.setItem(this.KEY, JSON.stringify(snap));
+      this._lastSaved = snap.ts;
+      this.notify();
+    } catch (e) {
+      console.error('[CSVHorse autosave]', e);
+      this.setEnabled(false);
+      if (!this._quotaWarned) {
+        UI.showToast('Autosave uitgeschakeld: ' + (e.message || 'storage error'), 'error');
+        this._quotaWarned = true;
+      }
+    }
+  },
+
+  setEnabled(b) {
+    this.enabled = !!b;
+    try { localStorage.setItem(this.ENABLED_KEY, this.enabled ? 'true' : 'false'); } catch (e) {}
+    if (this.enabled && !DataStore.isEmpty()) {
+      this.schedule();
+    } else if (!this.enabled) {
+      if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    }
+    this.notify();
+  },
+
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || obj.v !== 1 || !Array.isArray(obj.rows)) return null;
+      return obj;
+    } catch (e) { return null; }
+  },
+
+  clearStorage() {
+    try { localStorage.removeItem(this.KEY); } catch (e) {}
+    this._lastSaved = 0;
+    this.notify();
+  },
+
+  hasStored() { return !!this.load(); },
+  lastSaved() { return this._lastSaved; },
+
+  _listeners: [],
+  on(fn) { this._listeners.push(fn); },
+  notify() { for (const fn of this._listeners) fn(this); }
+};
+
+/* ============================================================
+ * SearchReplace — zoek & vervang met regex/scope (v0.2.0-Mustang)
+ * ============================================================ */
+const SearchReplace = {
+  state: {
+    query: '',
+    replace: '',
+    scope: 'all',         /* 'all' | 'col' | 'selection' */
+    regex: false,
+    caseSensitive: false
+  },
+  matches: [],            /* [{ r, c }, ...] */
+  currentIdx: -1,
+
+  _compile() {
+    const q = this.state.query;
+    if (!q) return null;
+    try {
+      if (this.state.regex) {
+        return new RegExp(q, this.state.caseSensitive ? 'g' : 'gi');
+      }
+      const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(esc, this.state.caseSensitive ? 'g' : 'gi');
+    } catch (e) { return e; }
+  },
+
+  scan() {
+    const re = this._compile();
+    this.matches = [];
+    this.currentIdx = -1;
+    if (re instanceof Error) { this.notify({ error: re.message }); return; }
+    if (!re || DataStore.isEmpty() || SQLEngine.active) { this.notify({}); return; }
+
+    const rows = DataStore.rows;
+    const cols = DataStore.cols;
+    const visibleRows = Filter.visibleRowIndexes();
+
+    let scopeRows = visibleRows;
+    let scopeCols = cols.map((_, i) => i);
+
+    if (this.state.scope === 'col' && Selection.has()) {
+      scopeCols = [Selection.c];
+    } else if (this.state.scope === 'selection' && Selection.has()) {
+      scopeRows = [Selection.r];
+      scopeCols = [Selection.c];
+    }
+
+    for (const r of scopeRows) {
+      const row = rows[r];
+      if (!row) continue;
+      for (const c of scopeCols) {
+        const v = row[c];
+        if (v == null) continue;
+        re.lastIndex = 0;
+        if (re.test(String(v))) {
+          this.matches.push({ r, c });
+        }
+      }
+    }
+
+    if (this.matches.length > 0) this.currentIdx = 0;
+    this.notify({});
+  },
+
+  current() {
+    if (this.currentIdx < 0 || this.currentIdx >= this.matches.length) return null;
+    return this.matches[this.currentIdx];
+  },
+
+  next() {
+    if (this.matches.length === 0) return;
+    this.currentIdx = (this.currentIdx + 1) % this.matches.length;
+    this.notify({});
+  },
+
+  prev() {
+    if (this.matches.length === 0) return;
+    this.currentIdx = (this.currentIdx - 1 + this.matches.length) % this.matches.length;
+    this.notify({});
+  },
+
+  /* Vervang in 1 cell-string: alle occurrences in die cel */
+  _replaceInCell(value) {
+    const re = this._compile();
+    if (!(re instanceof RegExp)) return value;
+    return String(value == null ? '' : value).replace(re, this.state.replace || '');
+  },
+
+  replaceOne() {
+    const m = this.current();
+    if (!m) return false;
+    const oldVal = DataStore.getCell(m.r, m.c);
+    const newVal = this._replaceInCell(oldVal);
+    if (String(newVal) === String(oldVal == null ? '' : oldVal)) {
+      this.next();
+      return false;
+    }
+    const cmd = SetCellCommand(m.r, m.c, oldVal, newVal);
+    cmd.apply();
+    CommandHistory.push(cmd);
+    /* rescan want cel-content veranderd; vorige idx weer naar dezelfde cel */
+    this.scan();
+    /* houd current op zelfde cel als hij nog steeds matched, anders skip */
+    const stillIdx = this.matches.findIndex(mm => mm.r === m.r && mm.c === m.c);
+    if (stillIdx >= 0) this.currentIdx = (stillIdx + 1) % this.matches.length;
+    this.notify({});
+    return true;
+  },
+
+  replaceAll() {
+    const re = this._compile();
+    if (!(re instanceof RegExp)) return 0;
+    /* Snapshot huidige scope-matches (unieke cells) */
+    const cells = [];
+    const seen = new Set();
+    for (const m of this.matches) {
+      const k = m.r + ':' + m.c;
+      if (seen.has(k)) continue;
+      seen.add(k); cells.push(m);
+    }
+    if (cells.length === 0) return 0;
+    const commands = [];
+    for (const m of cells) {
+      const oldVal = DataStore.getCell(m.r, m.c);
+      const newVal = this._replaceInCell(oldVal);
+      if (String(newVal) === String(oldVal == null ? '' : oldVal)) continue;
+      commands.push(SetCellCommand(m.r, m.c, oldVal, newVal));
+    }
+    if (commands.length === 0) return 0;
+    const batch = BatchCommand(commands, `Vervang alle (${commands.length})`);
+    batch.apply();
+    CommandHistory.push(batch);
+    /* rescan zonder matches: alles is vervangen */
+    this.scan();
+    return commands.length;
+  },
+
+  clear() {
+    this.matches = [];
+    this.currentIdx = -1;
+    this.state.query = '';
+    this.notify({});
+  },
+
+  _listeners: [],
+  on(fn) { this._listeners.push(fn); },
+  notify(payload) { for (const fn of this._listeners) fn(this, payload); }
+};
+
 /* ============================================================
  * ExportService — basic CSV export (v0.1.2-Appaloosa)
  * Contextueel: SQL-result / gefilterde view / alle data.
@@ -1821,6 +2204,8 @@ const Renderer = {
     this.el.innerHTML = '';
     this.el.appendChild(table);
     this.tableEl = table;
+    /* Apply search highlights (na append zodat querySelector werkt) */
+    this.applySearchHighlights();
     const ms = Math.round(performance.now() - t);
     console.log(`[CSVHorse] data-mode gerenderd: ${visibleRowIdx.length} van ${DataStore.rows.length} rijen × ${ncols} kolommen in ${ms}ms`);
   },
@@ -1890,6 +2275,26 @@ const Renderer = {
   getCellEl(r, c) {
     if (!this.tableEl) return null;
     return this.tableEl.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+  },
+
+  applySearchHighlights() {
+    if (!this.tableEl || SQLEngine.active) return;
+    /* Clear oude highlights */
+    const olds = this.tableEl.querySelectorAll('td.search-hit, td.search-current');
+    for (const td of olds) td.classList.remove('search-hit', 'search-current');
+    if (!SearchReplace.matches || SearchReplace.matches.length === 0) return;
+    SearchReplace.matches.forEach((m, i) => {
+      const td = this.getCellEl(m.r, m.c);
+      if (!td) return;
+      td.classList.add('search-hit');
+      if (i === SearchReplace.currentIdx) td.classList.add('search-current');
+    });
+    /* Scroll current into view */
+    const cur = SearchReplace.current();
+    if (cur) {
+      const td = this.getCellEl(cur.r, cur.c);
+      if (td) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
   }
 };
 
@@ -2008,7 +2413,24 @@ const UI = {
       btnFilter:        document.getElementById('btnFilter'),
       btnSql:           document.getElementById('btnSql'),
       btnExport:        document.getElementById('btnExport'),
+      btnSearch:        document.getElementById('btnSearch'),
+      btnAutosave:      document.getElementById('btnAutosave'),
       btnFormat:        document.getElementById('btnFormat'),
+      searchPanel:      document.getElementById('searchPanel'),
+      searchQuery:      document.getElementById('searchQuery'),
+      searchReplace:    document.getElementById('searchReplace'),
+      searchScope:      document.getElementById('searchScope'),
+      searchRegex:      document.getElementById('searchRegex'),
+      searchCase:       document.getElementById('searchCase'),
+      btnSearchPrev:    document.getElementById('btnSearchPrev'),
+      btnSearchNext:    document.getElementById('btnSearchNext'),
+      btnReplaceOne:    document.getElementById('btnReplaceOne'),
+      btnReplaceAll:    document.getElementById('btnReplaceAll'),
+      searchSummary:    document.getElementById('searchSummary'),
+      restoreBanner:    document.getElementById('restoreBanner'),
+      restoreInfo:      document.getElementById('restoreInfo'),
+      btnRestore:       document.getElementById('btnRestore'),
+      btnRestoreDismiss:document.getElementById('btnRestoreDismiss'),
       opmaakPanel:      document.getElementById('opmaakPanel'),
       btnBold:          document.getElementById('btnBold'),
       btnItalic:        document.getElementById('btnItalic'),
@@ -2074,6 +2496,13 @@ const UI = {
     Selection.on(() => this.onSelectionChanged());
     Filter.on(() => this.onFilterChanged());
     SQLEngine.on(() => this.onSqlChanged());
+    /* Autosave: schedule bij elke mutatie */
+    DataStore.on((s, kind) => {
+      if (kind === 'load' || kind === 'cell' || kind === 'clear') {
+        if (kind === 'clear') AutosaveService.clearStorage();
+        else AutosaveService.schedule();
+      }
+    });
 
     this.wireFileInput(this.els.fileInput);
     this.wireFileInput(this.els.fileInputBig);
@@ -2085,6 +2514,8 @@ const UI = {
     this.wireExportButton();
     this.wireFormatPanel();
     this.wireSqlBuilder();
+    this.wireSearchPanel();
+    this.wireAutosave();
     this.wireDragDrop();
     this.wireTableClicks();
     this.wireKeyboard();
@@ -2094,6 +2525,9 @@ const UI = {
     this.onHistoryChanged();
     this.onFilterChanged();
     this.onSqlChanged();
+    AutosaveService.init();
+    this.refreshAutosaveButton();
+    this.checkRestoreBanner();
   },
 
   wireFileInput(input) {
@@ -2263,6 +2697,168 @@ const UI = {
     const cmd = ClearStyleCommand(r, c, oldCopy);
     cmd.apply();
     CommandHistory.push(cmd);
+  },
+
+  /* ====== Search & Replace UI (v0.2.0-Mustang) ====== */
+  wireSearchPanel() {
+    this.els.btnSearch.addEventListener('click', () => {
+      const open = this.els.searchPanel.classList.toggle('open');
+      if (open) {
+        /* mutex met andere panels */
+        this.els.filterPanel.classList.remove('open');
+        this.els.sqlPanel.classList.remove('open');
+        this.els.opmaakPanel.classList.remove('open');
+        this.els.btnFilter.classList.toggle('active', Filter.isActive());
+        this.els.btnSql.classList.toggle('active', SQLEngine.active);
+        this.els.btnFormat.classList.remove('active');
+        setTimeout(() => this.els.searchQuery.focus(), 50);
+      }
+    });
+
+    /* Live re-scan bij input-changes */
+    const trigger = () => SearchReplace.scan();
+    this.els.searchQuery.addEventListener('input', () => {
+      SearchReplace.state.query = this.els.searchQuery.value;
+      trigger();
+    });
+    this.els.searchReplace.addEventListener('input', () => {
+      SearchReplace.state.replace = this.els.searchReplace.value;
+    });
+    this.els.searchScope.addEventListener('change', () => {
+      SearchReplace.state.scope = this.els.searchScope.value;
+      trigger();
+    });
+    this.els.searchRegex.addEventListener('change', () => {
+      SearchReplace.state.regex = this.els.searchRegex.checked;
+      trigger();
+    });
+    this.els.searchCase.addEventListener('change', () => {
+      SearchReplace.state.caseSensitive = this.els.searchCase.checked;
+      trigger();
+    });
+
+    this.els.btnSearchNext.addEventListener('click', () => SearchReplace.next());
+    this.els.btnSearchPrev.addEventListener('click', () => SearchReplace.prev());
+    this.els.btnReplaceOne.addEventListener('click', () => SearchReplace.replaceOne());
+    this.els.btnReplaceAll.addEventListener('click', () => {
+      const n = SearchReplace.replaceAll();
+      this.showToast(`Vervangen: ${n} cel${n === 1 ? '' : 'len'}`, n > 0 ? 'ok' : 'warn');
+    });
+
+    /* Enter = next, Shift+Enter = prev, Escape = close panel */
+    const onKey = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) SearchReplace.prev();
+        else SearchReplace.next();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        this.els.btnSearch.click();
+      }
+    };
+    this.els.searchQuery.addEventListener('keydown', onKey);
+    this.els.searchReplace.addEventListener('keydown', onKey);
+
+    /* SearchReplace observer → re-render highlights + update summary */
+    SearchReplace.on((sr, payload) => {
+      Renderer.applySearchHighlights();
+      this.refreshSearchSummary(payload);
+    });
+  },
+
+  refreshSearchSummary(payload) {
+    payload = payload || {};
+    if (payload.error) {
+      this.els.searchSummary.textContent = '⚠ ' + payload.error;
+      this.els.searchSummary.style.color = 'var(--color-danger)';
+      this._setSearchButtonsEnabled(false);
+      return;
+    }
+    this.els.searchSummary.style.color = '';
+    const q = SearchReplace.state.query;
+    const n = SearchReplace.matches.length;
+    if (!q) {
+      this.els.searchSummary.textContent = 'geen zoekterm';
+      this._setSearchButtonsEnabled(false);
+      return;
+    }
+    if (n === 0) {
+      this.els.searchSummary.textContent = `geen match voor "${q}"`;
+      this._setSearchButtonsEnabled(false);
+      return;
+    }
+    this.els.searchSummary.textContent = `match ${SearchReplace.currentIdx + 1} van ${n}`;
+    this._setSearchButtonsEnabled(true);
+  },
+
+  _setSearchButtonsEnabled(b) {
+    this.els.btnSearchNext.disabled = !b;
+    this.els.btnSearchPrev.disabled = !b;
+    this.els.btnReplaceOne.disabled = !b;
+    this.els.btnReplaceAll.disabled = !b;
+  },
+
+  /* ====== Autosave UI (v0.2.0-Mustang) ====== */
+  wireAutosave() {
+    this.els.btnAutosave.addEventListener('click', () => {
+      AutosaveService.setEnabled(!AutosaveService.enabled);
+      this.showToast(`Autosave ${AutosaveService.enabled ? 'AAN' : 'UIT'}`, 'info');
+    });
+
+    AutosaveService.on(() => this.refreshAutosaveButton());
+
+    /* Restore-banner buttons */
+    this.els.btnRestore.addEventListener('click', () => this.restoreFromAutosave());
+    this.els.btnRestoreDismiss.addEventListener('click', () => {
+      this.els.restoreBanner.classList.remove('open');
+      AutosaveService.clearStorage();
+      this.showToast('Eerdere sessie weggegooid', 'info');
+    });
+  },
+
+  refreshAutosaveButton() {
+    const b = this.els.btnAutosave;
+    if (!b) return;
+    if (AutosaveService.enabled) {
+      b.classList.add('on'); b.classList.remove('off');
+      const ts = AutosaveService.lastSaved();
+      if (ts) {
+        const d = new Date(ts);
+        const time = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+        b.textContent = `💾 Auto · ${time}`;
+        b.title = `Autosave AAN — laatste save: ${time}. Klik om uit te schakelen.`;
+      } else {
+        b.textContent = '💾 Auto AAN';
+        b.title = 'Autosave AAN — klik om uit te schakelen.';
+      }
+    } else {
+      b.classList.add('off'); b.classList.remove('on');
+      b.textContent = '💾 Auto UIT';
+      b.title = 'Autosave UIT — klik om aan te schakelen.';
+    }
+  },
+
+  checkRestoreBanner() {
+    if (!DataStore.isEmpty()) { this.els.restoreBanner.classList.remove('open'); return; }
+    const snap = AutosaveService.load();
+    if (!snap) { this.els.restoreBanner.classList.remove('open'); return; }
+    const ts = new Date(snap.ts || Date.now());
+    const time = ts.toLocaleString('nl-NL');
+    const c = snap.cols ? snap.cols.length : 0;
+    const r = snap.rows ? snap.rows.length : 0;
+    this.els.restoreInfo.textContent = `${snap.fileName || 'onbekend'} — ${r} × ${c}, opgeslagen ${time}`;
+    this.els.restoreBanner.classList.add('open');
+  },
+
+  restoreFromAutosave() {
+    const snap = AutosaveService.load();
+    if (!snap) { this.showToast('Geen sessie om te hervatten', 'warn'); return; }
+    DataStore.load({
+      rows: snap.rows, cols: snap.cols, styles: snap.styles || {},
+      dialect: snap.dialect, fileName: snap.fileName
+    });
+    this.els.restoreBanner.classList.remove('open');
+    this.showToast(`Sessie hervat: ${snap.fileName || '(onbekend)'} — ${snap.rows.length} rijen`, 'ok');
   },
 
   /* ====== SQL Builder UI (v0.1.5-Tinker) ====== */
@@ -2798,6 +3394,7 @@ const UI = {
       this.els.tableWrap.classList.add('hidden');
       this.els.filterPanel.classList.remove('open');
       this.els.sqlPanel.classList.remove('open');
+      this.els.searchPanel.classList.remove('open');
       this.els.btnFilter.classList.remove('active');
       this.els.btnSql.classList.remove('active');
       this.els.btnClear.disabled = true;
@@ -2805,9 +3402,12 @@ const UI = {
       this.els.btnFilter.disabled = true;
       this.els.btnSql.disabled = true;
       this.els.btnExport.disabled = true;
+      this.els.btnSearch.disabled = true;
+      this.els.btnAutosave.disabled = false; /* autosave-toggle altijd beschikbaar */
       this.els.btnFormat.disabled = true;
       this.els.opmaakPanel.classList.remove('open');
       this.els.btnFormat.classList.remove('active');
+      SearchReplace.clear();
       this.els.stats.textContent = 'geen data';
       this.els.phaseBadge.textContent = 'leeg';
       this.els.phaseBadge.classList.remove('filter-on', 'sql-on');
@@ -2827,6 +3427,8 @@ const UI = {
     this.els.btnFilter.disabled = false;
     this.els.btnSql.disabled = false;
     this.els.btnExport.disabled = false;
+    this.els.btnSearch.disabled = SQLEngine.active;
+    this.els.btnAutosave.disabled = false;
     this.els.btnFormat.disabled = SQLEngine.active;
     Renderer.renderAll();
     this.updateStats();
