@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.1.0-Lipizzaner (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.2.0-Andalusian (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -684,6 +684,65 @@
     #toast.show { opacity:1; }
     #toast.error { border-left-color:var(--color-danger); }
 
+    /* Sheet-tabs (SheetHorse v0.2.0-Andalusian) */
+    .sheet-tabs {
+      flex:0 0 auto;
+      display:flex;
+      align-items:stretch;
+      gap:2px;
+      padding:0 var(--space-2);
+      background:var(--color-surface-2);
+      border-top:1px solid var(--color-border);
+      overflow-x:auto;
+      max-height:36px;
+      min-height:36px;
+    }
+    .sheet-tabs .tab {
+      font:inherit; color:var(--color-text-dim);
+      background:transparent;
+      border:none;
+      border-top:2px solid transparent;
+      border-radius:0;
+      padding:6px 14px 6px 14px;
+      cursor:pointer;
+      font-size:.85rem;
+      white-space:nowrap;
+      display:inline-flex; align-items:center; gap:6px;
+      max-width:240px;
+    }
+    .sheet-tabs .tab:hover { color:var(--color-text); background:rgba(89,197,168,0.06); }
+    .sheet-tabs .tab.active {
+      color:var(--color-accent);
+      background:var(--color-bg);
+      border-top-color:var(--color-accent);
+      font-weight:600;
+    }
+    .sheet-tabs .tab.editing {
+      background:var(--color-edit-active);
+      color:var(--color-text);
+      outline:1px solid var(--color-accent);
+      outline-offset:-1px;
+    }
+    .sheet-tabs .tab .name { overflow:hidden; text-overflow:ellipsis; max-width:200px; }
+    .sheet-tabs .tab .close {
+      color:var(--color-text-dim);
+      font-size:1em;
+      padding:0 2px;
+    }
+    .sheet-tabs .tab .close:hover { color:var(--color-danger); }
+    .sheet-tabs .add-tab {
+      font:inherit; color:var(--color-text-dim);
+      background:transparent;
+      border:1px dashed var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:3px 10px;
+      margin:4px 0 4px 4px;
+      cursor:pointer;
+      font-size:.85rem;
+      align-self:center;
+    }
+    .sheet-tabs .add-tab:hover { color:var(--color-accent); border-color:var(--color-accent); }
+
     /* Footer */
     footer.app {
       flex:0 0 auto;
@@ -701,7 +760,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.1.0-Lipizzaner</span>
+  <span class="badge">v0.2.0-Andalusian</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -893,6 +952,31 @@
   <div id="tableWrap" class="hidden" tabindex="0"></div>
 </main>
 
+<div class="sheet-tabs" id="sheetTabs" role="tablist" aria-label="Werkbladen">
+  <!-- Tabs worden dynamisch gerendered -->
+</div>
+
+<div class="modal-overlay" id="csvImportModal" aria-hidden="true" role="dialog" aria-labelledby="csvImportTitle">
+  <div class="modal">
+    <h3 id="csvImportTitle">📥 CSV importeren op multi-sheet workbook</h3>
+    <div class="modal-body">
+      <div class="modal-hint">Je hebt al meerdere werkbladen geopend. Hoe wil je de nieuwe CSV (<code id="csvImportFilename"></code>) toevoegen?</div>
+      <label>
+        <input type="radio" name="csvImportMode" value="add" checked>
+        <span><strong>Toevoegen als nieuw werkblad</strong> — huidige werkbladen blijven behouden</span>
+      </label>
+      <label>
+        <input type="radio" name="csvImportMode" value="replace">
+        <span><strong>Vervang alles</strong> — alle huidige werkbladen worden weggegooid</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button id="btnCsvImportCancel">Annuleer</button>
+      <button id="btnCsvImportConfirm" class="primary">Doorgaan</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="sheetPickerModal" aria-hidden="true" role="dialog" aria-labelledby="sheetPickerTitle">
   <div class="modal">
     <h3 id="sheetPickerTitle">📑 Excel: meerdere tabbladen</h3>
@@ -971,7 +1055,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.1.0-Lipizzaner (codenaam Lipizzaner) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.2.0-Andalusian (codenaam Andalusian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1301,19 +1385,171 @@ Expecting `+nr.join(", ")+", got '"+(this.terminals_[Le]||Le)+"'":Tn="Parse erro
 /* ============================================================
  * DataStore — single source of truth
  * ============================================================ */
+/* SheetHorse v0.2.0-Andalusian: DataStore is multi-sheet.
+   Top-level rows/cols/styles/dialect verwijzen naar actieve sheet (kopie).
+   sheets[] bewaart alle sheets met per-sheet state-snapshot.
+   Bij switchTo(): huidige state wordt naar sheets[currentIdx] gesnapshot,
+   daarna load van sheets[newIdx] naar top-level. */
 const DataStore = {
   rows: [], cols: [],
-  styles: {},  /* { rowIdx: { colIdx: StyleObj } } — v0.1.3+ */
+  styles: {},
   dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' },
   fileName: '',
-  load({ rows, cols, dialect, fileName, styles }) {
-    this.rows = rows; this.cols = cols;
-    this.styles = styles || {};
-    this.dialect = Object.assign({}, this.dialect, dialect || {});
+
+  /* Multi-sheet state */
+  sheets: [],     /* [{ name, rows, cols, styles, dialect,
+                       _undoStack, _redoStack, _filterActive,
+                       _selR, _selC, _searchQuery }] */
+  activeIdx: -1,
+
+  /* === Sheet management === */
+  validateName(name, excludeIdx) {
+    /* Excel-regels: 1-31 chars, geen \:/?*[]; uniek */
+    let n = String(name || '').replace(/[\\\/\?\*\[\]:]/g, '').substring(0, 31).trim();
+    if (!n) n = 'Sheet';
+    let candidate = n;
+    let suffix = 1;
+    while (this.sheets.some((s, i) => i !== excludeIdx && s.name === candidate)) {
+      suffix++;
+      candidate = n + '_' + suffix;
+    }
+    return candidate;
+  },
+
+  addSheet(data, makeActive) {
+    const name = this.validateName((data && data.name) || `Sheet${this.sheets.length + 1}`);
+    const sheet = {
+      name,
+      rows: (data && data.rows) || [],
+      cols: (data && data.cols) || [],
+      styles: (data && data.styles) || {},
+      dialect: Object.assign({ delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' }, (data && data.dialect) || {}),
+      _undoStack: [],
+      _redoStack: [],
+      _filterActive: null,
+      _selR: null, _selC: null,
+      _searchQuery: ''
+    };
+    this.sheets.push(sheet);
+    const newIdx = this.sheets.length - 1;
+    if (makeActive || this.activeIdx === -1) {
+      this.switchTo(newIdx, { silent: false, skipSave: true });
+    } else {
+      this.notify('sheets-changed');
+    }
+    return newIdx;
+  },
+
+  removeSheet(idx) {
+    if (idx < 0 || idx >= this.sheets.length) return;
+    if (this.sheets.length === 1) {
+      /* Minimum 1 sheet → niet verwijderen, alleen leegmaken */
+      this.sheets[0].rows = []; this.sheets[0].cols = []; this.sheets[0].styles = {};
+      this.sheets[0]._undoStack = []; this.sheets[0]._redoStack = [];
+      this.activeIdx = -1;
+      this.switchTo(0, { skipSave: true });
+      return;
+    }
+    this.sheets.splice(idx, 1);
+    let newIdx = this.activeIdx;
+    if (idx <= this.activeIdx) newIdx = Math.max(0, this.activeIdx - 1);
+    if (newIdx >= this.sheets.length) newIdx = this.sheets.length - 1;
+    this.activeIdx = -1; /* force load */
+    this.switchTo(newIdx, { skipSave: true });
+  },
+
+  renameSheet(idx, newName) {
+    if (idx < 0 || idx >= this.sheets.length) return false;
+    const v = this.validateName(newName, idx);
+    if (v === this.sheets[idx].name) return false;
+    this.sheets[idx].name = v;
+    if (idx === this.activeIdx) this.notify('sheet-renamed', { idx });
+    else this.notify('sheets-changed');
+    return v;
+  },
+
+  switchTo(newIdx, opts) {
+    opts = opts || {};
+    if (newIdx < 0 || newIdx >= this.sheets.length) return;
+    if (newIdx === this.activeIdx) return;
+    /* Save current state */
+    if (this.activeIdx >= 0 && this.activeIdx < this.sheets.length && !opts.skipSave) {
+      const cur = this.sheets[this.activeIdx];
+      cur.rows = this.rows;
+      cur.cols = this.cols;
+      cur.styles = this.styles;
+      cur.dialect = this.dialect;
+      if (typeof CommandHistory !== 'undefined') {
+        cur._undoStack = CommandHistory.undoStack.slice();
+        cur._redoStack = CommandHistory.redoStack.slice();
+      }
+      if (typeof Filter !== 'undefined') {
+        cur._filterActive = Filter.active ? { col: Filter.active.col, op: Filter.active.op, val: Filter.active.val } : null;
+      }
+      if (typeof Selection !== 'undefined') {
+        cur._selR = Selection.r; cur._selC = Selection.c;
+      }
+      if (typeof SearchReplace !== 'undefined') {
+        cur._searchQuery = SearchReplace.state.query;
+      }
+    }
+    /* Load target */
+    const tgt = this.sheets[newIdx];
+    this.rows = tgt.rows;
+    this.cols = tgt.cols;
+    this.styles = tgt.styles;
+    this.dialect = tgt.dialect;
+    this.activeIdx = newIdx;
+    /* Restore per-sheet state (deferred — listeners doen restore na notify) */
+    this.notify('sheet-switch', { idx: newIdx, sheet: tgt, silent: !!opts.silent });
+  },
+
+  activeName() {
+    return (this.activeIdx >= 0 && this.sheets[this.activeIdx]) ? this.sheets[this.activeIdx].name : '';
+  },
+
+  /* === Bestaande API (werkt op active sheet) === */
+  load({ rows, cols, dialect, fileName, styles, sheets }) {
+    /* sheets[] heeft voorrang als opgegeven (multi-sheet load via import). */
     this.fileName = fileName || '';
+    this.sheets = [];
+    this.activeIdx = -1;
+    /* Reset CommandHistory om vorige sheet-stacks weg te gooien */
+    if (typeof CommandHistory !== 'undefined') { CommandHistory.undoStack.length = 0; CommandHistory.redoStack.length = 0; }
+    if (Array.isArray(sheets) && sheets.length > 0) {
+      sheets.forEach(s => this.addSheet({
+        name: s.name || `Sheet${this.sheets.length + 1}`,
+        rows: s.rows || [],
+        cols: s.cols || [],
+        styles: s.styles || {},
+        dialect: s.dialect || dialect || {}
+      }, false));
+      this.activeIdx = -1;
+      this.switchTo(0, { skipSave: true });
+    } else {
+      /* Single-sheet load (CSV) */
+      this.addSheet({
+        name: this._fileToSheetName(fileName) || 'Sheet1',
+        rows: rows || [],
+        cols: cols || [],
+        styles: styles || {},
+        dialect: dialect || {}
+      }, true);
+    }
     this.notify('load');
   },
-  clear() { this.rows = []; this.cols = []; this.styles = {}; this.fileName = ''; this.notify('clear'); },
+
+  _fileToSheetName(fileName) {
+    if (!fileName) return null;
+    return String(fileName).replace(/\.[a-z0-9]+$/i, '').substring(0, 31);
+  },
+
+  clear() {
+    this.rows = []; this.cols = []; this.styles = {}; this.fileName = '';
+    this.sheets = []; this.activeIdx = -1;
+    this.notify('clear');
+  },
+
   getCell(r, c) { const row = this.rows[r]; return row ? row[c] : undefined; },
   setCell(r, c, value) {
     while (this.rows[r] && this.rows[r].length <= c) this.rows[r].push('');
@@ -1322,7 +1558,7 @@ const DataStore = {
     this.notify('cell', { r, c });
   },
   count() { return { rows: this.rows.length, cols: this.cols.length }; },
-  isEmpty() { return this.rows.length === 0; },
+  isEmpty() { return this.rows.length === 0 && (!this.sheets || this.sheets.length === 0 || (this.sheets[this.activeIdx] && this.sheets[this.activeIdx].rows.length === 0 && this.sheets[this.activeIdx].cols.length === 0)); },
 
   asObjects() {
     const out = new Array(this.rows.length);
@@ -1958,7 +2194,7 @@ const SearchReplace = {
 };
 
 /* ============================================================
- * ExcelIO — XLSX import + export (SheetHorse v0.1.0-Lipizzaner)
+ * ExcelIO — XLSX import + export (SheetHorse v0.2.0-Andalusian)
  * Wrapper rond xlsx-populate (window.XlsxPopulate)
  * ============================================================ */
 const ExcelIO = {
@@ -2075,28 +2311,59 @@ const ExcelIO = {
     return out;
   },
 
-  /* Schrijf workbook met cols + rows + styles → Blob */
+  /* Schrijf workbook met cols + rows + styles → Blob.
+     v0.2.0: ook multi-sheet support via writeMultiSheetWorkbook. */
   async writeWorkbook(cols, rows, styles, sheetName) {
-    if (!window.XlsxPopulate) throw new Error('xlsx-populate niet geladen');
-    const wb = await window.XlsxPopulate.fromBlankAsync();
-    const ws = wb.sheet(0);
-    if (sheetName) ws.name(sheetName.substring(0, 31));
+    return this.writeMultiSheetWorkbook([{
+      name: sheetName || 'Data',
+      cols, rows, styles: styles || {}
+    }]);
+  },
 
-    /* Headers */
+  /* Multi-sheet workbook met array van { name, cols, rows, styles } */
+  async writeMultiSheetWorkbook(sheets) {
+    if (!window.XlsxPopulate) throw new Error('xlsx-populate niet geladen');
+    if (!sheets || sheets.length === 0) throw new Error('Geen sheets om te exporteren');
+    const wb = await window.XlsxPopulate.fromBlankAsync();
+    sheets.forEach((sd, idx) => {
+      let ws;
+      if (idx === 0) {
+        ws = wb.sheet(0);
+      } else {
+        ws = wb.addSheet(this._safeSheetName(sd.name, wb));
+      }
+      if (idx === 0 && sd.name) {
+        ws.name(this._safeSheetName(sd.name, wb));
+      }
+      this._writeSheetData(ws, sd.cols, sd.rows, sd.styles || {});
+    });
+    return await wb.outputAsync('blob');
+  },
+
+  _safeSheetName(name, wb) {
+    let n = String(name || 'Sheet').replace(/[\\\/\?\*\[\]:]/g, '').substring(0, 31).trim() || 'Sheet';
+    /* Uniek-check tegen bestaande sheets */
+    const existing = wb.sheets().map(s => s.name());
+    let candidate = n; let suffix = 1;
+    while (existing.includes(candidate)) {
+      suffix++;
+      candidate = n + '_' + suffix;
+    }
+    return candidate;
+  },
+
+  _writeSheetData(ws, cols, rows, styles) {
     cols.forEach((name, i) => {
       const c = ws.cell(1, i + 1);
       c.value(name);
       c.style({ bold: true });
     });
-
-    /* Rows */
     rows.forEach((row, rIdx) => {
       row.forEach((val, cIdx) => {
         const cell = ws.cell(rIdx + 2, cIdx + 1);
         if (val == null || val === '') {
           cell.value(null);
         } else {
-          /* Probeer numeric te detecteren voor betere Excel-experience */
           const num = Number(val);
           if (val !== '' && !isNaN(num) && /^-?\d+(\.\d+)?$/.test(String(val))) {
             cell.value(num);
@@ -2108,8 +2375,6 @@ const ExcelIO = {
         if (s) this._applyExcelStyle(cell, s);
       });
     });
-
-    return await wb.outputAsync('blob');
   },
 
   _applyExcelStyle(cell, s) {
@@ -2220,16 +2485,40 @@ const ExportService = {
     const finalFilename = filename.replace(/\.csv$/i, '.xlsx').replace(/\.xlsx$/i, '') + (filename.toLowerCase().endsWith('.xlsx') ? '' : '.xlsx');
     UI.showToast('Bezig met Excel-export...', 'info');
     try {
-      const blob = await ExcelIO.writeWorkbook(
-        src.cols,
-        src.rows,
-        withStyles ? src.styles : null,
-        'Data'
-      );
+      let blob;
+      let totalRows = src.rows.length;
+      let totalStyleCells = withStyles ? this._countStyles(src.styles) : 0;
+      let sheetSummary = '';
+      /* v0.2.0: multi-sheet export voor mode 'all' indien DataStore meerdere sheets heeft */
+      if (src.mode === 'all' && DataStore.sheets && DataStore.sheets.length > 1) {
+        /* Sync huidige actieve sheet eerst (state-snapshot) */
+        const curIdx = DataStore.activeIdx;
+        if (curIdx >= 0) {
+          DataStore.sheets[curIdx].rows = DataStore.rows;
+          DataStore.sheets[curIdx].cols = DataStore.cols;
+          DataStore.sheets[curIdx].styles = DataStore.styles;
+        }
+        const allSheets = DataStore.sheets.map(s => ({
+          name: s.name,
+          cols: s.cols,
+          rows: s.rows,
+          styles: withStyles ? s.styles : {}
+        }));
+        totalRows = allSheets.reduce((sum, s) => sum + s.rows.length, 0);
+        if (withStyles) totalStyleCells = allSheets.reduce((sum, s) => sum + this._countStyles(s.styles), 0);
+        sheetSummary = ` · ${allSheets.length} werkbladen`;
+        blob = await ExcelIO.writeMultiSheetWorkbook(allSheets);
+      } else {
+        blob = await ExcelIO.writeWorkbook(
+          src.cols,
+          src.rows,
+          withStyles ? src.styles : null,
+          DataStore.activeName() || 'Data'
+        );
+      }
       this._downloadBlob(blob, finalFilename);
-      const styleCount = withStyles ? this._countStyles(src.styles) : 0;
-      let extra = withStyles && styleCount ? ` · ${styleCount} cell-style${styleCount === 1 ? '' : 's'}` : '';
-      UI.showToast(`Geëxporteerd Excel: ${src.rows.length} rij${src.rows.length === 1 ? '' : 'en'} → ${finalFilename}${extra}`, 'ok');
+      let extra = withStyles && totalStyleCells ? ` · ${totalStyleCells} cell-style${totalStyleCells === 1 ? '' : 's'}` : '';
+      UI.showToast(`Geëxporteerd Excel: ${totalRows} rij${totalRows === 1 ? '' : 'en'} → ${finalFilename}${sheetSummary}${extra}`, 'ok');
     } catch (e) {
       console.error('[SheetHorse Excel-export]', e);
       UI.showToast('Excel-export fout: ' + e.message, 'error');
@@ -2331,33 +2620,44 @@ const IO = {
      Embedded objects: toast-waarschuwing, niet importeren. */
   async _parseXlsxFile(file) {
     const wb = await ExcelIO.readWorkbook(file);
-    const sheets = ExcelIO.sheetsInfo(wb);
+    const sheetsInfo = ExcelIO.sheetsInfo(wb);
     const hasObjects = ExcelIO.hasEmbeddedObjects(wb);
 
-    let chosenIdx = 0;
-    if (sheets.length > 1) {
-      chosenIdx = await UI.openSheetPicker(sheets);
-      if (chosenIdx == null) throw new Error('Import geannuleerd');
+    /* v0.2.0-Andalusian: laad ALLE sheets (geen picker meer) */
+    const sheets = [];
+    let totalStyleCells = 0;
+    for (let i = 0; i < sheetsInfo.length; i++) {
+      const xSheet = wb.sheet(i);
+      const data = ExcelIO.liftSheetData(xSheet);
+      const styleCount = Object.values(data.styles).reduce((s, r) => s + Object.keys(r).length, 0);
+      totalStyleCells += styleCount;
+      sheets.push({
+        name: sheetsInfo[i].name || `Sheet${i + 1}`,
+        rows: data.rows,
+        cols: data.cols,
+        styles: data.styles,
+        dialect: { delimiter: ',', newline: '\n', quoteChar: '"', decimal: '.' }
+      });
     }
-    const sheet = wb.sheet(chosenIdx);
-    const data = ExcelIO.liftSheetData(sheet);
 
     if (hasObjects) {
       setTimeout(() => UI.showToast('⚠ Bestand bevat afbeeldingen/charts/embedded-objects — NIET geïmporteerd; alleen cell-data + opmaak', 'warn'), 200);
     }
 
     return {
-      rows: data.rows,
-      cols: data.cols,
-      styles: data.styles,
+      /* Top-level voor backwards-compat (active = sheet 0) */
+      rows: sheets[0] ? sheets[0].rows : [],
+      cols: sheets[0] ? sheets[0].cols : [],
+      styles: sheets[0] ? sheets[0].styles : {},
       dialect: { delimiter: ',', newline: '\n', quoteChar: '"', decimal: '.' },
       fileName: file.name,
       errors: [],
-      stylesLifted: Object.keys(data.styles).length,
-      styleCellCount: ExcelIO._countCellStyles ? ExcelIO._countCellStyles(data.styles) : Object.values(data.styles).reduce((s, r) => s + Object.keys(r).length, 0),
+      stylesLifted: totalStyleCells > 0 ? 1 : 0,
+      styleCellCount: totalStyleCells,
       sourceFormat: 'xlsx',
-      sourceSheet: sheets[chosenIdx].name,
-      totalSheets: sheets.length
+      sourceSheet: sheetsInfo[0] ? sheetsInfo[0].name : '',
+      totalSheets: sheetsInfo.length,
+      sheets: sheets   /* ← multi-sheet voor DataStore.load */
     };
   },
 
@@ -2862,6 +3162,11 @@ const UI = {
       newCsvRows:       document.getElementById('newCsvRows'),
       btnNewCsvCancel:  document.getElementById('btnNewCsvCancel'),
       btnNewCsvConfirm: document.getElementById('btnNewCsvConfirm'),
+      sheetTabs:        document.getElementById('sheetTabs'),
+      csvImportModal:   document.getElementById('csvImportModal'),
+      csvImportFilename:document.getElementById('csvImportFilename'),
+      btnCsvImportCancel: document.getElementById('btnCsvImportCancel'),
+      btnCsvImportConfirm:document.getElementById('btnCsvImportConfirm'),
       sheetPickerModal: document.getElementById('sheetPickerModal'),
       sheetPickerCount: document.getElementById('sheetPickerCount'),
       sheetPickerSelect:document.getElementById('sheetPickerSelect'),
@@ -2922,6 +3227,8 @@ const UI = {
     this.wireExportButton();
     this.wireNewCsvButton();
     this.wireSheetPicker();
+    this.wireSheetTabs();
+    this.wireCsvImportModal();
     this.wireFormatPanel();
     this.wireSqlBuilder();
     this.wireSearchPanel();
@@ -2974,6 +3281,187 @@ const UI = {
   wireUndoRedoButtons() {
     this.els.btnUndo.addEventListener('click', () => this.undo());
     this.els.btnRedo.addEventListener('click', () => this.redo());
+  },
+
+  /* ====== Sheet-tabs strip (SheetHorse v0.2.0-Andalusian) ====== */
+  wireSheetTabs() {
+    this.els.sheetTabs.addEventListener('click', (e) => {
+      const close = e.target.closest('.close');
+      if (close) {
+        e.stopPropagation();
+        const idx = parseInt(close.dataset.idx, 10);
+        this._deleteSheetWithConfirm(idx);
+        return;
+      }
+      const tab = e.target.closest('.tab');
+      if (tab && tab.dataset.idx != null) {
+        const idx = parseInt(tab.dataset.idx, 10);
+        if (!isNaN(idx) && idx !== DataStore.activeIdx) {
+          if (EditController.isEditing()) EditController.commit();
+          if (EditController.isEditingHeader()) EditController.commitColEdit();
+          DataStore.switchTo(idx);
+        }
+        return;
+      }
+      const add = e.target.closest('.add-tab');
+      if (add) this._addBlankSheet();
+    });
+    this.els.sheetTabs.addEventListener('dblclick', (e) => {
+      const tab = e.target.closest('.tab');
+      if (!tab || tab.dataset.idx == null) return;
+      const idx = parseInt(tab.dataset.idx, 10);
+      this._beginTabRename(idx, tab);
+    });
+  },
+
+  renderSheetTabs() {
+    const el = this.els.sheetTabs;
+    el.innerHTML = '';
+    if (!DataStore.sheets || DataStore.sheets.length === 0) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = '';
+    DataStore.sheets.forEach((s, i) => {
+      const tab = document.createElement('button');
+      tab.className = 'tab' + (i === DataStore.activeIdx ? ' active' : '');
+      tab.dataset.idx = i;
+      tab.title = `${s.name} — klik om te activeren · dubbelklik om naam te bewerken`;
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = s.name;
+      tab.appendChild(name);
+      if (DataStore.sheets.length > 1) {
+        const close = document.createElement('span');
+        close.className = 'close';
+        close.dataset.idx = i;
+        close.textContent = '×';
+        close.title = 'Verwijder werkblad';
+        tab.appendChild(close);
+      }
+      el.appendChild(tab);
+    });
+    const add = document.createElement('button');
+    add.className = 'add-tab';
+    add.title = 'Nieuw werkblad toevoegen';
+    add.textContent = '+ Nieuw werkblad';
+    el.appendChild(add);
+  },
+
+  _addBlankSheet() {
+    if (EditController.isEditing()) EditController.commit();
+    if (EditController.isEditingHeader()) EditController.commitColEdit();
+    const newIdx = DataStore.addSheet({
+      name: `Sheet${DataStore.sheets.length + 1}`,
+      rows: [['']],
+      cols: ['col_1'],
+      styles: {}
+    }, true);
+    this.showToast(`Nieuw werkblad: ${DataStore.sheets[newIdx].name}`, 'ok');
+  },
+
+  _deleteSheetWithConfirm(idx) {
+    const sheet = DataStore.sheets[idx];
+    if (!sheet) return;
+    if (sheet.rows.length > 0 || sheet.cols.length > 0) {
+      if (!confirm(`Werkblad "${sheet.name}" verwijderen?\n(${sheet.rows.length} rij${sheet.rows.length === 1 ? '' : 'en'} × ${sheet.cols.length} kolom${sheet.cols.length === 1 ? '' : 'men'} gaan verloren)`)) return;
+    }
+    DataStore.removeSheet(idx);
+    this.showToast(`Werkblad verwijderd`, 'info');
+  },
+
+  _beginTabRename(idx, tabEl) {
+    if (idx !== DataStore.activeIdx) DataStore.switchTo(idx);
+    const nameSpan = tabEl.querySelector('.name');
+    if (!nameSpan) return;
+    const oldName = DataStore.sheets[idx].name;
+    tabEl.classList.add('editing');
+    nameSpan.setAttribute('contenteditable', 'true');
+    nameSpan.focus();
+    const range = document.createRange();
+    range.selectNodeContents(nameSpan);
+    const sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    const commit = () => {
+      nameSpan.removeEventListener('blur', commit);
+      nameSpan.removeEventListener('keydown', keydown);
+      tabEl.classList.remove('editing');
+      nameSpan.removeAttribute('contenteditable');
+      const newName = nameSpan.textContent.trim();
+      if (newName && newName !== oldName) {
+        const final = DataStore.renameSheet(idx, newName);
+        if (final && final !== newName) this.showToast(`Naam aangepast naar "${final}" (uniek-check)`, 'info');
+      } else {
+        nameSpan.textContent = oldName;
+      }
+    };
+    const cancel = () => {
+      nameSpan.removeEventListener('blur', commit);
+      nameSpan.removeEventListener('keydown', keydown);
+      tabEl.classList.remove('editing');
+      nameSpan.removeAttribute('contenteditable');
+      nameSpan.textContent = oldName;
+    };
+    const keydown = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    };
+    nameSpan.addEventListener('blur', commit);
+    nameSpan.addEventListener('keydown', keydown);
+  },
+
+  _restoreActiveSheetState() {
+    const sheet = (DataStore.activeIdx >= 0) ? DataStore.sheets[DataStore.activeIdx] : null;
+    if (!sheet) return;
+    /* CommandHistory */
+    CommandHistory.undoStack.length = 0;
+    if (Array.isArray(sheet._undoStack)) CommandHistory.undoStack.push.apply(CommandHistory.undoStack, sheet._undoStack);
+    CommandHistory.redoStack.length = 0;
+    if (Array.isArray(sheet._redoStack)) CommandHistory.redoStack.push.apply(CommandHistory.redoStack, sheet._redoStack);
+    CommandHistory.notify();
+    /* Filter — herapply als opgeslagen */
+    if (sheet._filterActive) Filter.apply(sheet._filterActive);
+    else Filter.clear();
+    /* Selection */
+    Selection.r = null; Selection.c = null;
+    if (sheet._selR != null && sheet._selC != null) {
+      /* defer selection-set tot na render */
+      setTimeout(() => Selection.set(sheet._selR, sheet._selC), 0);
+    } else {
+      Selection.notify();
+    }
+    /* Search */
+    SearchReplace.clear();
+    if (sheet._searchQuery) {
+      SearchReplace.state.query = sheet._searchQuery;
+      if (this.els.searchQuery) this.els.searchQuery.value = sheet._searchQuery;
+    }
+  },
+
+  /* ====== CSV-import-modal (multi-sheet) ====== */
+  wireCsvImportModal() {
+    this.els.btnCsvImportCancel.addEventListener('click', () => this._csvImportResolve && this._csvImportResolve(null));
+    this.els.btnCsvImportConfirm.addEventListener('click', () => {
+      const mode = this.els.csvImportModal.querySelector('input[name="csvImportMode"]:checked').value;
+      this._csvImportResolve && this._csvImportResolve(mode);
+    });
+    this.els.csvImportModal.addEventListener('click', (e) => {
+      if (e.target === this.els.csvImportModal) this._csvImportResolve && this._csvImportResolve(null);
+    });
+  },
+
+  openCsvImportDialog(filename) {
+    this.els.csvImportFilename.textContent = filename || '(onbekend)';
+    this.els.csvImportModal.classList.add('open');
+    this.els.csvImportModal.setAttribute('aria-hidden', 'false');
+    return new Promise((resolve) => {
+      this._csvImportResolve = (val) => {
+        this.els.csvImportModal.classList.remove('open');
+        this.els.csvImportModal.setAttribute('aria-hidden', 'true');
+        this._csvImportResolve = null;
+        resolve(val);
+      };
+    });
   },
 
   /* ====== Sheet-picker modal (SheetHorse v0.1.0) ====== */
@@ -3936,19 +4424,38 @@ const UI = {
   async handleFile(file) {
     try {
       if (EditController.isEditing()) EditController.cancel();
+      if (EditController.isEditingHeader()) EditController.commitColEdit();
+      this.showToast('Bezig met inlezen…', 'info');
+      const result = await IO.parseFile(file);
+      const isXlsx = result.sourceFormat === 'xlsx';
+      const isCsv = !isXlsx;
+      const hasExistingSheets = DataStore.sheets && DataStore.sheets.length > 0
+        && (DataStore.sheets.length > 1 || (DataStore.sheets[0] && (DataStore.sheets[0].rows.length > 0 || DataStore.sheets[0].cols.length > 0)));
+      /* CSV-import op multi-sheet workbook: vraag toevoegen/vervangen */
+      if (isCsv && DataStore.sheets && DataStore.sheets.length > 1) {
+        const mode = await this.openCsvImportDialog(file.name);
+        if (mode == null) { this.showToast('Import geannuleerd', 'info'); return; }
+        if (mode === 'add') {
+          DataStore.addSheet({
+            name: DataStore._fileToSheetName(file.name) || `Sheet${DataStore.sheets.length + 1}`,
+            rows: result.rows, cols: result.cols, styles: result.styles, dialect: result.dialect
+          }, true);
+          this.showToast(`Toegevoegd: ${file.name} — ${result.rows.length} rij${result.rows.length === 1 ? '' : 'en'}`, 'ok');
+          return;
+        }
+        /* mode === 'replace' → fall through naar standaard load */
+      }
+      /* Standaard pad: vervang alle */
       Selection.clear();
       CommandHistory.clear();
       Filter.clear();
       SQLEngine.clear();
       SQLBuilder.reset();
-      this.showToast('Bezig met inlezen…', 'info');
-      const result = await IO.parseFile(file);
       DataStore.load(result);
       const c = DataStore.count();
       let msg = `Geladen: ${file.name} — ${c.rows} rij${c.rows === 1 ? '' : 'en'} × ${c.cols} kolom${c.cols === 1 ? '' : 'men'}`;
       if (result.sourceFormat === 'xlsx') {
-        msg += ` · Excel-sheet "${result.sourceSheet}"`;
-        if (result.totalSheets > 1) msg += ` (van ${result.totalSheets})`;
+        msg += ` · ${result.totalSheets} werkblad${result.totalSheets === 1 ? '' : 'en'}`;
       }
       const styleCells = result.styleCellCount || 0;
       if (styleCells > 0) {
@@ -3985,6 +4492,7 @@ const UI = {
       this.els.opmaakPanel.classList.remove('open');
       this.els.btnFormat.classList.remove('active');
       SearchReplace.clear();
+      this.renderSheetTabs();
       this.els.stats.textContent = 'geen data';
       this.els.phaseBadge.textContent = 'leeg';
       this.els.phaseBadge.classList.remove('filter-on', 'sql-on');
@@ -3998,6 +4506,29 @@ const UI = {
       if (this.els.filterPanel && this.els.filterPanel.classList.contains('open')) this.repopulateFilterColumns();
       if (this.els.sqlBuilder && this.els.sqlBuilder.classList.contains('open')) this.refreshBuilderColumns();
       this.updateStats();
+      return;
+    }
+    if (kind === 'sheets-changed' || kind === 'sheet-renamed') {
+      this.renderSheetTabs();
+      this.updateStats();
+      return;
+    }
+    if (kind === 'sheet-switch') {
+      /* Re-render volledig + restore per-sheet state */
+      this._restoreActiveSheetState();
+      this.renderSheetTabs();
+      this.els.emptyState.style.display = 'none';
+      this.els.tableWrap.classList.remove('hidden');
+      this.els.btnClear.disabled = false;
+      this.els.btnFilter.disabled = false;
+      this.els.btnSql.disabled = false;
+      this.els.btnExport.disabled = false;
+      this.els.btnSearch.disabled = SQLEngine.active;
+      this.els.btnFormat.disabled = SQLEngine.active;
+      Renderer.renderAll();
+      this.updateStats();
+      this.refreshPhaseBadge();
+      this.els.fileNameMeta.textContent = DataStore.fileName ? '📄 ' + DataStore.fileName : '';
       return;
     }
     if (kind === 'cell' && payload && !SQLEngine.active) {
@@ -4016,6 +4547,7 @@ const UI = {
     this.els.btnAutosave.disabled = false;
     this.els.btnFormat.disabled = SQLEngine.active;
     Renderer.renderAll();
+    this.renderSheetTabs();
     this.updateStats();
     this.refreshPhaseBadge();
     this.els.fileNameMeta.textContent = store.fileName ? '📄 ' + store.fileName : '';

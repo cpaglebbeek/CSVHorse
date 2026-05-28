@@ -1,10 +1,10 @@
 {
   "product": "SheetHorse",
   "branch": "sheethorse",
-  "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch)",
-  "version": "0.1.0.1",
-  "codename": "Lipizzaner",
+  "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch) — incl. cherry-pick v0.2.0.3 header-edit",
+  "version": "0.2.0",
+  "codename": "Andalusian",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "v0.1.0 Excel + cherry-pick CSVHorse v0.2.0.3 header-edit (aanpasbare kolomnamen via dubbelklik op th, SetColNameCommand undo-baar)"
+  "phase": "Multi-sheet runtime support: DataStore.sheets[], tab-strip onderaan, switchTo() met per-sheet state-snapshot (undo/redo/filter/selection/search), XLSX import laadt alle sheets, XLSX export multi-sheet, CSV-import vraag toevoegen/vervangen, sheet-add/-rename/-delete; sheet-naam-validatie Excel-regels"
 }
