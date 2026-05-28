@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0.1",
+  "version": "0.2.0.2",
   "codename": "Mustang",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 9 + patch: autosave UIT wist nu ook bestaande snapshot (consistent gedrag)"
+  "phase": "MVP-stap 9 + patch: autosave UIT wist snapshot · lege CSV starten via dialog (kolom/rij-aantal)"
 }

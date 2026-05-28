@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CSVHorse — CSV viewer &amp; editor</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="CSVHorse v0.2.0-Mustang">
+  <meta name="generator" content="CSVHorse v0.2.0.2-Mustang">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -201,7 +201,7 @@
     }
     .opmaak-panel .summary strong { color:var(--color-accent); }
 
-    /* Search panel + autosave (v0.2.0-Mustang) */
+    /* Search panel + autosave (v0.2.0.2-Mustang) */
     .search-panel {
       padding:var(--space-3) var(--space-4);
       border-bottom:1px solid var(--color-border);
@@ -370,7 +370,7 @@
       color:var(--color-danger); font-family:var(--font-mono); font-size:.78rem;
     }
 
-    /* SQL builder (v0.2.0-Mustang) */
+    /* SQL builder (v0.2.0.2-Mustang) */
     .sql-builder {
       padding:var(--space-3);
       background:var(--color-surface-2);
@@ -691,7 +691,7 @@
 
 <header class="app">
   <h1>CSV<span class="accent">Horse</span></h1>
-  <span class="badge">v0.2.0-Mustang</span>
+  <span class="badge">v0.2.0.2-Mustang</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -702,6 +702,7 @@
     <span>⬆</span><span>Upload CSV</span>
     <input type="file" id="fileInput" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain">
   </label>
+  <button id="btnNew" title="Start met lege CSV (kies kolom- en rij-aantal)">🆕 Nieuw</button>
   <button id="btnClear" title="Wis huidige tabel" disabled>↺ Wis</button>
   <span class="sep"></span>
   <button id="btnEdit" title="Bewerk geselecteerde cel (dubbelklik / Enter / F2)" disabled>✎ Bewerken</button>
@@ -882,6 +883,26 @@
   <div id="tableWrap" class="hidden" tabindex="0"></div>
 </main>
 
+<div class="modal-overlay" id="newCsvModal" aria-hidden="true" role="dialog" aria-labelledby="newCsvModalTitle">
+  <div class="modal">
+    <h3 id="newCsvModalTitle">🆕 Nieuwe lege CSV</h3>
+    <div class="modal-body">
+      <label>Aantal kolommen:
+        <input type="number" id="newCsvCols" min="1" max="100" value="5">
+      </label>
+      <div class="modal-hint">Kolommen krijgen automatisch namen <code>col_1</code>, <code>col_2</code>, ... — je kunt ze later via cell-edit aanpassen (volgt v0.3.x).</div>
+      <label>Aantal rijen:
+        <input type="number" id="newCsvRows" min="0" max="10000" value="1">
+      </label>
+      <div class="modal-hint">Start met 0 voor alleen header. Begin met 1+ om direct te typen.</div>
+    </div>
+    <div class="modal-footer">
+      <button id="btnNewCsvCancel">Annuleer</button>
+      <button id="btnNewCsvConfirm" class="primary">🆕 Aanmaken</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="exportModal" aria-hidden="true" role="dialog" aria-labelledby="exportModalTitle">
   <div class="modal">
     <h3 id="exportModalTitle">⬇ Exporteer CSV</h3>
@@ -917,7 +938,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  CSVHorse v0.2.0-Mustang (codenaam Mustang) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  CSVHorse v0.2.0.2-Mustang (codenaam Mustang) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1646,7 +1667,7 @@ function BatchCommand(commands, label) {
 }
 
 /* ============================================================
- * AutosaveService — throttled localStorage snapshot (v0.2.0-Mustang)
+ * AutosaveService — throttled localStorage snapshot (v0.2.0.2-Mustang)
  * ============================================================ */
 const AutosaveService = {
   KEY: 'csvhorse:autosave:v1',
@@ -1735,7 +1756,7 @@ const AutosaveService = {
 };
 
 /* ============================================================
- * SearchReplace — zoek & vervang met regex/scope (v0.2.0-Mustang)
+ * SearchReplace — zoek & vervang met regex/scope (v0.2.0.2-Mustang)
  * ============================================================ */
 const SearchReplace = {
   state: {
@@ -2464,6 +2485,12 @@ const UI = {
       btnBuildQuery:    document.getElementById('btnBuildQuery'),
       btnResetBuilder:  document.getElementById('btnResetBuilder'),
       btnBuildAndRun:   document.getElementById('btnBuildAndRun'),
+      btnNew:           document.getElementById('btnNew'),
+      newCsvModal:      document.getElementById('newCsvModal'),
+      newCsvCols:       document.getElementById('newCsvCols'),
+      newCsvRows:       document.getElementById('newCsvRows'),
+      btnNewCsvCancel:  document.getElementById('btnNewCsvCancel'),
+      btnNewCsvConfirm: document.getElementById('btnNewCsvConfirm'),
       exportFilename:   document.getElementById('exportFilename'),
       exportWithStyles: document.getElementById('exportWithStyles'),
       exportWithBom:    document.getElementById('exportWithBom'),
@@ -2514,6 +2541,7 @@ const UI = {
     this.wireFilterPanel();
     this.wireSqlPanel();
     this.wireExportButton();
+    this.wireNewCsvButton();
     this.wireFormatPanel();
     this.wireSqlBuilder();
     this.wireSearchPanel();
@@ -2568,6 +2596,67 @@ const UI = {
     this.els.btnRedo.addEventListener('click', () => this.redo());
   },
 
+  /* ====== Lege CSV dialog (v0.2.0.2) ====== */
+  wireNewCsvButton() {
+    this.els.btnNew.addEventListener('click', () => this.openNewCsvDialog());
+    this.els.btnNewCsvCancel.addEventListener('click', () => this.closeNewCsvDialog());
+    this.els.btnNewCsvConfirm.addEventListener('click', () => this.confirmNewCsv());
+    this.els.newCsvModal.addEventListener('click', (e) => {
+      if (e.target === this.els.newCsvModal) this.closeNewCsvDialog();
+    });
+    this.els.newCsvModal.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); this.closeNewCsvDialog(); }
+      if (e.key === 'Enter' && e.target !== this.els.btnNewCsvCancel) {
+        e.preventDefault(); this.confirmNewCsv();
+      }
+    });
+  },
+
+  openNewCsvDialog() {
+    /* Confirm-prompt als er huidige data is */
+    if (!DataStore.isEmpty()) {
+      if (!confirm('Huidige data + opmaak + undo-historie wordt gewist. Doorgaan?')) return;
+    }
+    this.els.newCsvModal.classList.add('open');
+    this.els.newCsvModal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => { this.els.newCsvCols.focus(); this.els.newCsvCols.select(); }, 50);
+  },
+
+  closeNewCsvDialog() {
+    this.els.newCsvModal.classList.remove('open');
+    this.els.newCsvModal.setAttribute('aria-hidden', 'true');
+  },
+
+  confirmNewCsv() {
+    const ncols = Math.max(1, Math.min(100, parseInt(this.els.newCsvCols.value, 10) || 5));
+    const nrows = Math.max(0, Math.min(10000, parseInt(this.els.newCsvRows.value, 10) || 0));
+    /* Reset alles wat aan vorige data gekoppeld is */
+    if (EditController.isEditing()) EditController.cancel();
+    Selection.clear();
+    CommandHistory.clear();
+    Filter.clear();
+    SQLEngine.clear();
+    SQLBuilder.reset();
+    SearchReplace.clear();
+    /* Bouw lege dataset */
+    const cols = [];
+    for (let i = 0; i < ncols; i++) cols.push('col_' + (i + 1));
+    const rows = [];
+    for (let r = 0; r < nrows; r++) {
+      const row = new Array(ncols).fill('');
+      rows.push(row);
+    }
+    DataStore.load({
+      rows, cols,
+      dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' },
+      fileName: 'nieuw.csv',
+      styles: {}
+    });
+    this.closeNewCsvDialog();
+    this.showToast(`Nieuwe CSV: ${nrows} rij${nrows === 1 ? '' : 'en'} × ${ncols} kolom${ncols === 1 ? '' : 'men'}`, 'ok');
+  },
+
+  /* ====== Export button ====== */
   wireExportButton() {
     this.els.btnExport.addEventListener('click', () => this.openExportDialog());
     this.els.btnExportCancel.addEventListener('click', () => this.closeExportDialog());
@@ -2701,7 +2790,7 @@ const UI = {
     CommandHistory.push(cmd);
   },
 
-  /* ====== Search & Replace UI (v0.2.0-Mustang) ====== */
+  /* ====== Search & Replace UI (v0.2.0.2-Mustang) ====== */
   wireSearchPanel() {
     this.els.btnSearch.addEventListener('click', () => {
       const open = this.els.searchPanel.classList.toggle('open');
@@ -2800,7 +2889,7 @@ const UI = {
     this.els.btnReplaceAll.disabled = !b;
   },
 
-  /* ====== Autosave UI (v0.2.0-Mustang) ====== */
+  /* ====== Autosave UI (v0.2.0.2-Mustang) ====== */
   wireAutosave() {
     this.els.btnAutosave.addEventListener('click', () => {
       AutosaveService.setEnabled(!AutosaveService.enabled);
