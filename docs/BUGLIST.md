@@ -8,6 +8,31 @@ _Geen._
 
 ## Opgeloste bugs
 
+### B-002 — SQL "table does not exist: data" (groen)
+
+**Datum:** 2026-05-28
+**Versie:** v0.1.1-Akhal-Teke (intro), gefixt in v0.1.1.1
+**Symptoom:** Bij `SELECT * FROM data ...` in het SQL-panel kreeg gebruiker AlaSQL-fout "table does not exist: data".
+
+**RCA (3 niveaus):**
+- **Functioneel:** gebruiker typt `FROM data` maar AlaSQL kent geen tabel met die naam
+- **Technisch:** initiële implementatie gebruikte `alasql(query, [objects])` — dat bindt `objects` aan positional `?`-placeholders. Dat werkt alleen als de query `FROM ?` schrijft, niet `FROM data` letterlijk.
+- **Architectonisch:** verkeerd AlaSQL-binding-patroon gekozen. Voor named-table-syntax (de natuurlijke manier waarop een eindgebruiker SQL schrijft) moet je `alasql.tables.<naam>.data = objects` registreren voorafgaand aan de query, NIET positional params.
+
+**Fix:** in `SQLEngine.run()` vóór `alasql(query)` aanroepen:
+```js
+if (!window.alasql.tables.data) window.alasql('CREATE TABLE data');
+window.alasql.tables.data.data = objects;
+const res = window.alasql(query);  // geen 2e arg meer
+```
+Re-bind elke run zodat actuele DataStore (incl. cell-edits) zichtbaar is voor elke nieuwe SELECT.
+
+**Preventie:**
+- Vóór nieuwe AlaSQL-features: test eerst de query-syntax die gebruiker écht zal typen, niet wat in vendor-docs als eerste voorbeeld staat
+- Het `alasql.tables.<naam>.data`-patroon werkt voor alle `CREATE TABLE`-namen die je vooraf registreert
+
+**Patroon-ID:** `SQL-001` — toegevoegd onder "Terugkerende patronen".
+
 ### B-001 — CDN cache serveert verouderde versie (geel)
 
 **Datum:** 2026-05-28
@@ -41,6 +66,7 @@ Te vullen tijdens MVP-implementatie en daarna. Initiële verwachte categorieën 
 | CSV-001 | Parse | CRLF/LF-verwarring bij export-roundtrip | Dialect altijd expliciet opslaan in DataStore, niet auto-detecteren bij export |
 | CSV-002 | Parse | BOM in eerste cell-value | PapaParse `skipEmptyLines` + custom BOM-strip vóór parse |
 | SQL-001 | Engine | AlaSQL case-sensitivity op kolomnamen met spaties | Kolomnamen escapen met `[...]` of `"..."` consequent |
+| SQL-002 | Engine | `alasql(query, [objects])` werkt alleen met `FROM ?`-positional, niet met `FROM <naam>` letterlijk → "table does not exist" | Vóór query: `alasql('CREATE TABLE data'); alasql.tables.data.data = objects;` daarna `alasql(query)` zonder 2e arg. Re-bind elke run om edits te reflecteren. |
 | STYLE-001 | Roundtrip | `__style_*`-kolom collisie met user-data | Naming-conventie strikt valideren bij import; user-warning bij conflict |
 | RENDER-001 | Virtual scroll | Scroll-jump bij rij-verwijdering | Anchor-row-ID behouden, scrollTop bijwerken na DataStore mutatie |
 | UNDO-001 | History | Stack-explosie bij paste van groot blok | Paste = 1 batch-command, geen N losse cell-edits |

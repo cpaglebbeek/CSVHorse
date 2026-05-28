@@ -893,7 +893,13 @@ const SQLEngine = {
     }
     try {
       const objects = DataStore.asObjects();
-      const res = window.alasql(query, [objects]);
+      /* Register named table 'data' in AlaSQL — re-bind elke run zodat
+         actuele DataStore (incl. edits) altijd zichtbaar is voor SELECT.
+         Eerdere variant alasql(query, [objects]) ondersteunde alleen
+         FROM ?-positional, niet FROM data letterlijk (B-002 fix). */
+      if (!window.alasql.tables.data) window.alasql('CREATE TABLE data');
+      window.alasql.tables.data.data = objects;
+      const res = window.alasql(query);
       if (!Array.isArray(res) || res.length === 0) {
         this.lastQuery = query;
         this.active = true;

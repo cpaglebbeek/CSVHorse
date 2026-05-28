@@ -366,3 +366,36 @@ Uitgevoerd na skeleton-push. Score ~85% conform voor skeleton-fase: alle concept
 
 ### Nieuwe resume-trigger (overschrijft eerdere)
 **"verder met CSVHorse v0.1.2-Appaloosa: opmaak-toolbar (bold/italic/underline/strikethrough/kleur/background/font-size/alignment) via __style_* in DataStore"**
+
+## Bugfix B-002 — SQL "table does not exist: data" (groen)
+
+**Prompt:** *"debug groen: bij select query: table does not exist: data"*
+
+### Diagnose
+- AlaSQL-API patroon `alasql(query, [objects])` bindt array aan positional `?`-placeholders
+- Gebruiker typt `SELECT * FROM data` letterlijk (niet `FROM ?`) → AlaSQL kent geen tabel `data`
+- Node-test bevestigde: `alasql.tables.data.data = objects` daarna `alasql('SELECT * FROM data')` werkt voor `*`, `WHERE`, `GROUP BY`
+
+### Fix (1 lijnstuk in SQLEngine.run)
+```js
+const objects = DataStore.asObjects();
+if (!window.alasql.tables.data) window.alasql('CREATE TABLE data');
+window.alasql.tables.data.data = objects;
+const res = window.alasql(query);   // geen 2e arg
+```
+
+### Test (via Node module-binding)
+- `SELECT * FROM data` → ✓ 3 objects
+- `SELECT naam, leeftijd FROM data WHERE leeftijd > 30` → ✓ [Anna(34), Cora(45)]
+- `SELECT stad, COUNT(*) AS n FROM data GROUP BY stad` → ✓ 3 groepen
+
+### Documentatie
+- `docs/BUGLIST.md`: B-002 + patroon `SQL-002` in preventietabel
+- `version.json`: bumped naar 0.1.1.1 (patch onder Akhal-Teke codenaam)
+- `STATUS.md`: bugfix-rij in log
+- Sync naar tail-template in `/tmp/csvhorse-tail.html` zodat toekomstige rebuilds dezelfde fix bevatten
+
+### Geleerd
+- AlaSQL named-table = `alasql.tables.<naam>.data = arr` (niet via positional params)
+- Re-bind elke run zodat live edits zichtbaar zijn in SELECT
+- Vendor-docs eerste voorbeeld != natuurlijke eindgebruiker-syntax — test met de query die de gebruiker écht zal typen

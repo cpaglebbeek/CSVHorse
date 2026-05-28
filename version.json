@@ -1,7 +1,7 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.1.1",
   "codename": "Akhal-Teke",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 4: SQL-panel via AlaSQL (SELECT/WHERE/GROUP BY/ORDER BY/aggregates)"
+  "phase": "MVP-stap 4 + B-002 fix: SQL-panel met correcte alasql.tables.data binding"
 }
