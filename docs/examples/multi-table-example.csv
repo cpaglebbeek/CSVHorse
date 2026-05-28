@@ -1,0 +1,38 @@
+# CSVHorse multi-table format v1
+# Generated for: SheetHorse v0.5.0-Knabstrupper showcase
+# Showcase: 3 tabellen + 2 FK-relaties + 1 JOIN-query + opmaak per cel
+
+# TABLE klanten
+id,naam,stad,vip,__style_naam,__style_vip
+1,Alice Janssen,Amsterdam,true,b=1,b=1;c=#1a7f37;bg=#dafbe1
+2,Bob de Vries,Rotterdam,false,,
+3,Carla Smit,Den Haag,true,b=1,b=1;c=#1a7f37;bg=#dafbe1
+4,Daan Bakker,Utrecht,false,,
+5,Esther Visser,Eindhoven,true,b=1,b=1;c=#1a7f37;bg=#dafbe1
+
+# TABLE producten
+sku,naam,prijs,voorraad,__style_voorraad
+P001,Stoel eik,189.00,12,
+P002,Tafel notenhout,449.50,3,b=1;c=#cf222e;bg=#ffebe9
+P003,Lamp messing,79.95,28,
+P004,Kast wit,329.00,0,b=1;c=#ffffff;bg=#cf222e
+P005,Bureau zwart,259.00,7,
+
+# TABLE bestellingen
+order_id,klant_id,sku,aantal,datum,__style_aantal
+1001,1,P001,2,2026-04-12,
+1002,1,P003,1,2026-04-12,
+1003,2,P002,1,2026-05-03,
+1004,3,P001,4,2026-05-08,b=1;c=#0969da
+1005,3,P005,1,2026-05-08,
+1006,5,P003,3,2026-05-15,
+1007,5,P002,1,2026-05-15,
+1008,4,P004,1,2026-05-20,
+
+# RELATIONS
+from_table,from_col,to_table,to_col,name,cardinality
+bestellingen,klant_id,klanten,id,fk_bestelling_klant,n-1
+bestellingen,sku,producten,sku,fk_bestelling_product,n-1
+
+# QUERY
+sql=SELECT k.naam AS klant, k.stad, COUNT(*) AS aantal_orders, SUM(b.aantal * p.prijs) AS totaal_eur FROM klanten k JOIN bestellingen b ON b.klant_id=k.id JOIN producten p ON p.sku=b.sku WHERE k.vip='true' GROUP BY k.naam, k.stad ORDER BY totaal_eur DESC
