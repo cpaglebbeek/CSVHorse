@@ -215,9 +215,10 @@ Voor een visuele weergave van bovenstaande architectuur in ArchiMate-stijl (8 vi
 6. Data-flow — Opmaak + autosave naar localStorage
 7. Data-flow — Export met `__style_*` roundtrip (default AAN)
 8. Roadmap — Plateaus v0.0.1-Friesian … v1.0.0-Lusitano
+9. **Ecosysteem-branches** — CSVHorse-light (main) + SheetHorse-full (sheethorse); fork-relatie, gedeelde + branch-specifieke features (toegevoegd 2026-05-28 branch-split)
 
 **Functionaliteit:** view-selector, JSON-export (intern), `.archimate`-export (Archi-tool v5 compatibel), SVG-export per view, JSON+`.archimate` import om model te vervangen, reset naar ingebouwde model.
 
 **Stijl:** identiek aan `WerkDierenbescherming/architectuur/solution/telefonie/telefonie_viewer.html` — Visio-look met drop-shadow, Calibri/Arial, `«ElementType»`-banner + 16×16 ArchiMate-icoon, layer-kleuren conform ArchiMate-conventie.
 
-**Model-statistieken:** 74 elementen + 5 notes, 117 relaties, 8 views met 123 diagram-objects en 121 connections.
+**Model-statistieken:** 81 elementen + 7 notes, 127 relaties, 9 views met 132 diagram-objects en 131 connections.

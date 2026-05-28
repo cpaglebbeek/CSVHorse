@@ -328,6 +328,17 @@ const DEFAULT_MODEL = {
     { id:'n-vendored',    type:'Note', name:'PapaParse + AlaSQL\nvendored (inline JS)\nGeen CDN, geen netwerk' },
     { id:'n-undo',        type:'Note', name:'Onbeperkte undo-stack\nper cel-edit granulariteit\n(~100KB/100k edits)' },
     { id:'n-roundtrip',   type:'Note', name:'Export-dialog toggle:\n[x] Met opmaak (default)\n→ extra kolommen __style_*' },
+
+    /* --- View 9: Ecosysteem-branches (CSVHorse light + SheetHorse full) --- */
+    { id:'e-product-csv',   type:'BusinessService', name:'CSVHorse\n(light variant)\nSingle-table CSV-werkbank' },
+    { id:'e-product-sheet', type:'BusinessService', name:'SheetHorse\n(full variant)\nMulti-tabel relationele DB' },
+    { id:'e-repo-shared',   type:'Node',            name:'cpaglebbeek/CSVHorse\n(gedeelde repo)' },
+    { id:'e-branch-main',   type:'Plateau',         name:'Branch: main\nCSVHorse-light\nv0.2.0.2-Mustang STABLE' },
+    { id:'e-branch-sheet',  type:'Plateau',         name:'Branch: sheethorse\nSheetHorse-full\nv0.0.1-Haflinger active' },
+    { id:'e-features-csv',  type:'ApplicationCollab', name:'Gedeelde features:\nimport/edit/SQL/filter/\nopmaak/autosave/zoek-vervang/\nundo/lege-CSV' },
+    { id:'e-features-sheet',type:'ApplicationCollab', name:'SheetHorse-only:\nExcel-roundtrip · multi-sheet\nrelaties-tabblad · SQL-joins\nquery-tabblad · CSV-met-metadata' },
+    { id:'n-branchsplit',   type:'Note',            name:'Branch-split 2026-05-28\nCSVHorse → CSVHorse + SheetHorse\n1 repo · 2 branches' },
+    { id:'n-bugcheck',      type:'Note',            name:'Bij /bugcheck:\nALTIJD beide branches scannen\n(bugs vaak shared)' },
   ],
   relationships: [
     /* --- View 1: Conceptueel (Driver realized by 8 Principles) --- */
@@ -470,6 +481,18 @@ const DEFAULT_MODEL = {
     { id:'r-n-vend-papa', source:'n-vendored',     target:'e-papa',  type:'Association' },
     { id:'r-n-undo-p6',   source:'n-undo',         target:'e-p6',    type:'Association' },
     { id:'r-n-rt7',       source:'n-roundtrip',    target:'e-io',    type:'Association' },
+
+    /* --- View 9: Ecosysteem-branches --- */
+    { id:'r-csv-main',      source:'e-product-csv',   target:'e-branch-main',  type:'Realization' },
+    { id:'r-sheet-sh',      source:'e-product-sheet', target:'e-branch-sheet', type:'Realization' },
+    { id:'r-main-repo',     source:'e-branch-main',   target:'e-repo-shared',  type:'Composition' },
+    { id:'r-sheet-repo',    source:'e-branch-sheet',  target:'e-repo-shared',  type:'Composition' },
+    { id:'r-csv-feats',     source:'e-product-csv',   target:'e-features-csv', type:'Aggregation' },
+    { id:'r-sheet-feats',   source:'e-product-sheet', target:'e-features-sheet', type:'Aggregation' },
+    { id:'r-sheet-csvfeats',source:'e-product-sheet', target:'e-features-csv', type:'Aggregation', name:'erft van' },
+    { id:'r-csv-sheet-fork',source:'e-product-csv',   target:'e-product-sheet', type:'Influence', name:'forked from\nv0.2.0.2' },
+    { id:'r-n-bsplit',      source:'n-branchsplit',   target:'e-repo-shared',  type:'Association' },
+    { id:'r-n-bugcheck',    source:'n-bugcheck',      target:'e-repo-shared',  type:'Association' },
   ],
   views: [
     /* ============ View 1: Conceptueel (Motivation) ============ */
@@ -847,6 +870,37 @@ const DEFAULT_MODEL = {
         { id:'c-8-mvp',   source:'do-8-dmvp', target:'do-8-pl20', relationship:'r-mvp-pl20' },
         { id:'c-8-dep',   source:'do-8-ddep', target:'do-8-pl50', relationship:'r-dep-pl50' },
         { id:'c-8-stab',  source:'do-8-dst',  target:'do-8-pl100',relationship:'r-stab-pl100' },
+      ],
+    },
+
+    /* ============ View 9: Ecosysteem-branches (2026-05-28 split) ============ */
+    {
+      id:'v-9-branches',
+      name:'9. Ecosysteem — branches (CSVHorse light + SheetHorse full)',
+      width:1600, height:720,
+      title:'Branch-split 2026-05-28 — 1 repo, 2 branches: main=CSVHorse-light (stable), sheethorse=SheetHorse-full (active)',
+      objects:[
+        { id:'do-9-csv',      element:'e-product-csv',     x:  60, y:120, w:280, h:120 },
+        { id:'do-9-sheet',    element:'e-product-sheet',   x:1260, y:120, w:280, h:120 },
+        { id:'do-9-main',     element:'e-branch-main',     x:  60, y:320, w:280, h:110 },
+        { id:'do-9-shbranch', element:'e-branch-sheet',    x:1260, y:320, w:280, h:110 },
+        { id:'do-9-repo',     element:'e-repo-shared',     x: 600, y:380, w:400, h:100 },
+        { id:'do-9-fc',       element:'e-features-csv',    x:  60, y:520, w:560, h:120 },
+        { id:'do-9-fs',       element:'e-features-sheet',  x: 940, y:520, w:600, h:120 },
+        { id:'do-9-nsplit',   element:'n-branchsplit',     x: 600, y: 30, w:400, h: 90 },
+        { id:'do-9-nbug',     element:'n-bugcheck',        x: 600, y:140, w:400, h: 90 },
+      ],
+      connections:[
+        { id:'c-9-csv-main',     source:'do-9-csv',     target:'do-9-main',     relationship:'r-csv-main' },
+        { id:'c-9-sh-shbranch',  source:'do-9-sheet',   target:'do-9-shbranch', relationship:'r-sheet-sh' },
+        { id:'c-9-main-repo',    source:'do-9-main',    target:'do-9-repo',     relationship:'r-main-repo' },
+        { id:'c-9-shb-repo',     source:'do-9-shbranch',target:'do-9-repo',     relationship:'r-sheet-repo' },
+        { id:'c-9-csv-fc',       source:'do-9-csv',     target:'do-9-fc',       relationship:'r-csv-feats' },
+        { id:'c-9-sh-fs',        source:'do-9-sheet',   target:'do-9-fs',       relationship:'r-sheet-feats' },
+        { id:'c-9-sh-fc',        source:'do-9-sheet',   target:'do-9-fc',       relationship:'r-sheet-csvfeats' },
+        { id:'c-9-fork',         source:'do-9-csv',     target:'do-9-sheet',    relationship:'r-csv-sheet-fork' },
+        { id:'c-9-nsplit',       source:'do-9-nsplit',  target:'do-9-repo',     relationship:'r-n-bsplit' },
+        { id:'c-9-nbug',         source:'do-9-nbug',    target:'do-9-repo',     relationship:'r-n-bugcheck' },
       ],
     },
   ],
