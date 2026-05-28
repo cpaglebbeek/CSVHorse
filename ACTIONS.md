@@ -12,7 +12,7 @@ Open punten met `- [ ]`. Afgeronde met `[x]`. Conventie: `(DD-MM)` voor datum, b
 - [x] **IO-laag (upload + parse + dialect-detect)** — File API + drag-drop + PapaParse.parse (28-05, v0.0.2-Arabian; export volgt v0.4.0-Shire)
 - [x] **CSV-roundtrip styles** — `__style_*`-kolommen liften bij import, flatten bij export, dialog-toggle (default AAN) — gerealiseerd in v0.1.4-Trakehner (zie hierboven)
 - [x] **Renderer (basis)** — HTML `<table>` met sticky thead, comfortabel tot ~5k rijen (28-05, v0.0.2-Arabian)
-- [ ] **Renderer met virtual scroll** — vaste rij-hoogte, DOM-recycling, 100k-rijen-stress-test (v0.3.0-Haflinger)
+- ➡ **SheetHorse** ~~Renderer met virtual scroll~~ — verschoven naar SheetHorse-branch (CSVHorse-light blijft simpel full-render tot ~5k rijen)
 - [x] **EditController** — cell-edit-mode (dubbelklik/Enter/F2), paste, keyboard navigatie (Arrow/Tab/Enter/Home/End), Escape=cancel (28-05, v0.0.3-Andalusian)
 - [x] **CommandHistory** — atomic edits, undo/redo (Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y), onbeperkt (28-05, v0.0.3-Andalusian)
 - [x] **Toolbar — opmaak** — bold/italic/underline/strikethrough/kleur/background/font-size/alignment via `DataStore.styles{}` (28-05, v0.1.3-Knabstrupper). __style_*-roundtrip blijft v0.4.0-Shire.

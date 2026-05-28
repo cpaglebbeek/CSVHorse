@@ -1,8 +1,10 @@
-# STATUS.md — CSVHorse
+# STATUS.md — CSVHorse (light) · `main` branch
+
+> **2026-05-28 — Branch-split:** Vanaf nu is **CSVHorse** de **light/single-table CSV-werkbank**. De full/multi-table relationele variant heet **SheetHorse** en leeft op de **`sheethorse` branch** in deze repo. Excel (.xlsx) import/export hoort exclusief in SheetHorse. CSVHorse blijft beperkt tot CSV. Zie `architectuur/CSVHorse_viewer.html` view "Ecosysteem-branches" en `feedback_bugcheck_hele_tree.md` voor cross-branch bug-handling.
 
 ## Huidige fase
 
-**v0.2.0-Mustang** — autosave naar localStorage (throttled + AAN/UIT) + zoek/vervang dialog (regex/case/scope/vervang alle) — **oranje versiebump**.
+**v0.2.0.2-Mustang** — stabiel CSVHorse-light met lege-CSV-start, autosave, zoek/vervang, opmaak-toolbar, opmaak-roundtrip via `__style_*`, SQL-builder, filter, undo. **Eindpunt voor de light-variant** (alleen onderhoud + bug-fixes vanaf hier; nieuwe features → SheetHorse-branch).
 
 | Aspect | Status |
 |--------|--------|
@@ -53,9 +55,11 @@
 | **Zoek/vervang met regex + case-toggle + scope + volgende/vorige** | ✓ |
 | **Vervang alle = 1 atomic batch-command (1 undo-step)** | ✓ |
 | **Visuele highlights `.search-hit` + `.search-current`** | ✓ |
-| Virtual scrolling 100k+ | ⏸ v0.3.0-Haflinger |
-| Export met `__style_*` roundtrip | ⏸ v0.4.0-Shire |
-| Deployment `icthorse.nl/CSVHorse/` | ⏸ v0.5.0-Hanoverian |
+| ~~Virtual scrolling 100k+~~ | **➡ SheetHorse-branch** (niet in CSVHorse-light) |
+| ~~Excel-export (.xlsx)~~ | **➡ SheetHorse v0.1.0-Lipizzaner** (niet in CSVHorse) |
+| ~~Excel-import + multi-sheet + relaties~~ | **➡ SheetHorse v0.1.0+** (niet in CSVHorse) |
+| ~~Virtuele relationele DB / multi-tabel-CSV~~ | **➡ SheetHorse v0.5.0-Knabstrupper** (niet in CSVHorse) |
+| Deployment `icthorse.nl/CSVHorse/` | ⏸ blijft op CSVHorse-roadmap (volgt later) |
 | `/sanitycheck` op skeleton | ✓ uitgevoerd 2026-05-28 |
 
 ## Volgende milestones
@@ -88,6 +92,7 @@
 | 2026-05-28 | 0.1.1.1 | B-002 fix (groen): SQL-panel werkte niet — `alasql(query, [objects])` bindt alleen aan `FROM ?`, niet `FROM data` letterlijk. Fix: `alasql.tables.data.data = objects` registreren vóór elke run. Patroon SQL-002 vastgelegd in BUGLIST. |
 | 2026-05-28 | 0.1.2-Appaloosa | **Scope-shift**: Appaloosa = basic CSV export (was opmaak). ExportService-module met `exportCurrent()`: contextuele mode-detectie (SQL-active → `sql` / Filter-active → `filtered` / anders → `all`), `Papa.unparse()` met DataStore.dialect.delimiter behoud, Blob → browser-download. Bestandsnaam-template `<basis>_<modus>_<YYYYMMDD_HHMM>.csv`. Toast met rij-aantal + filename. Toolbar ⬇ Exporteer-knop enabled bij data-load. Opmaak verschoven naar v0.1.3 (codenaam bij die release). **Groen versiebump**. |
 | 2026-05-28 | 0.1.4.1 | B-003 (groen) gediagnoseerd: opmaak verdwijnt bij re-import = **browser-cache** (zelfde patroon als B-001 CDN-cache, nu client-side). Geen code-fix nodig — `Ctrl/Cmd+Shift+R` lost het op. Patroon DEPLOY-CACHE-002 vastgelegd in BUGLIST. Diagnostic logging + toast "opmaak hersteld: N cellen" toegevoegd voor toekomstige debug. |
+| 2026-05-28 | (branch-split) | **CSVHorse → light + SheetHorse → full**. CSVHorse blijft op `main`, v0.2.0.2 als stable eindpunt. SheetHorse start op `sheethorse` branch met fork van CSVHorse v0.2.0.2 + Excel import/export + multi-tabel/relaties/query roadmap. STATUS.md + ACTIONS.md gemarkeerd: Excel-features verschoven naar SheetHorse-branch, niet in CSVHorse-light. Memory feedback `feedback_bugcheck_hele_tree.md`: bij `/bugcheck` altijd beide branches scannen. |
 | 2026-05-28 | 0.2.0.2 | Nieuwe feature (groen): **Lege CSV starten** via `🆕 Nieuw`-knop in toolbar. Dialog vraagt aantal kolommen (1-100, default 5) + aantal rijen (0-10000, default 1). Auto-named cols `col_1`..`col_N`. Confirm-prompt als er huidige data is. Bij Aanmaken: alle state-resets (Selection/Edit/Filter/SQL/Builder/Search) + DataStore.load met lege rows + cols. |
 | 2026-05-28 | 0.2.0.1 | UX-fix (groen): `AutosaveService.setEnabled(false)` wist nu ook de bestaande snapshot uit localStorage. Reden: gedrag was inconsistent — UIT zetten stopt nieuwe saves, maar oude snapshot bleef bestaan → bij heropen kreeg gebruiker toch een restore-banner met verouderde data. Nu: UIT = "schoon, niets bewaard". |
 | 2026-05-28 | 0.2.0-Mustang | **Oranje versiebump** — twee features in 1 release: (1) AutosaveService — throttled (2 sec) localStorage-snapshot van DataStore (rows/cols/styles/dialect/fileName), AAN/UIT toggle in toolbar (💾 Auto), quota-check met auto-disable, restore-banner bij page-load met data in storage; (2) SearchReplace — apart paneel (mutex met andere panelen) met query/replace inputs, scope (alle/kolom/selectie), regex-toggle, case-sensitive toggle, volgende/vorige/vervang/vervang-alle. Vervang-alle = 1 atomic BatchCommand (1 undo-step). Visuele highlights via `.search-hit` + `.search-current` classes. Live re-scan bij input-changes. Renderer.applySearchHighlights na renderAll. 4 functionele test-scenario's bevestigd correct (case-insensitive zoek, case-sensitive, regex ^[A-Z], vervang). Codenaam Mustang (Amerikaans wild paard — robuust + autonoom = past bij persistence + zelfstandige zoek-functie). |

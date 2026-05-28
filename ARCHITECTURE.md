@@ -1,4 +1,10 @@
-# ARCHITECTURE.md — CSVHorse
+# ARCHITECTURE.md — CSVHorse + SheetHorse
+
+> **2026-05-28 — Branch-split:** Deze repo bevat vanaf nu twee productvarianten:
+> - **CSVHorse** (`main` branch, **dit document**) — light, single-table CSV-werkbank, stabiel op v0.2.0.2-Mustang
+> - **SheetHorse** (`sheethorse` branch) — full, virtuele relationele DB met multi-tabel + Excel + relaties + SQL-joins
+>
+> Bij `/bugcheck`: altijd beide branches scannen (zie `feedback_bugcheck_hele_tree.md` in claude memory).
 
 Architectuurvastlegging conform Meta_Master *Expliciete Vastlegging Principe*. Alle componenten, relaties, data-flow, oorzaak/gevolg en afhankelijkheden worden hier expliciet beschreven.
 
