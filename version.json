@@ -2,9 +2,9 @@
   "product": "SheetHorse",
   "branch": "sheethorse",
   "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch) — incl. cherry-pick v0.2.0.3 header-edit",
-  "version": "0.3.0",
-  "codename": "Trakehner",
+  "version": "0.4.0",
+  "codename": "Akhal-Teke",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "Relaties-tabblad: speciale 🔗 Relaties-tab in tab-strip waar FK-relaties tussen sheets gedefinieerd worden. Auto-detect (sheet_id ← sheet.id), kardinaliteit (1-1/1-N/N-1/N-N), optionele naam. Persistent via _relations-sheet bij XLSX-export/import. Sheet-rename/delete updaten referenties."
+  "phase": "SQL met joins over multi-sheet: alle sheets als named tables in AlaSQL (incl. brackets-escape voor namen met spaties), query-resultaat als read-only sheet (📊 Query result) in tab-strip, _query metadata-sheet bij XLSX-roundtrip. Auto-suggesties op basis van relaties uit v0.3.0."
 }

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.3.0-Trakehner (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.4.0-Akhal-Teke (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -684,7 +684,7 @@
     #toast.show { opacity:1; }
     #toast.error { border-left-color:var(--color-danger); }
 
-    /* Relations panel (SheetHorse v0.3.0-Trakehner) */
+    /* Relations panel (SheetHorse v0.4.0-Akhal-Teke) */
     #relationsPanel {
       flex:1 1 auto;
       display:none;
@@ -778,6 +778,32 @@
       text-align:center; padding:var(--space-5);
       color:var(--color-text-dim);
     }
+    /* Speciale Query-result-tab in tab-strip (v0.4.0-Akhal-Teke) */
+    .sheet-tabs .tab.result-tab {
+      color:#59c5a8;
+      border-top-color:transparent;
+      font-style:italic;
+    }
+    .sheet-tabs .tab.result-tab.active {
+      color:#7ad8be;
+      border-top-color:#59c5a8;
+      background:var(--color-bg);
+    }
+    .sheet-tabs .tab.result-tab .name::before {
+      content:'';
+    }
+    .sheet-tabs .tab.result-tab .ro {
+      font-size:.62rem;
+      background:rgba(89,197,168,0.15);
+      color:#7ad8be;
+      padding:1px 6px;
+      border-radius:99px;
+      margin-left:4px;
+      font-style:normal;
+      font-weight:600;
+      letter-spacing:.5px;
+      text-transform:uppercase;
+    }
     /* Speciale Relaties-tab in tab-strip */
     .sheet-tabs .tab.relations-tab {
       color:#9f7bff;
@@ -797,7 +823,7 @@
       font-weight:700;
     }
 
-    /* Sheet-tabs (SheetHorse v0.3.0-Trakehner) */
+    /* Sheet-tabs (SheetHorse v0.4.0-Akhal-Teke) */
     .sheet-tabs {
       flex:0 0 auto;
       display:flex;
@@ -873,7 +899,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.3.0-Trakehner</span>
+  <span class="badge">v0.4.0-Akhal-Teke</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -1097,7 +1123,7 @@
   <div class="modal">
     <h3 id="sheetPickerTitle">📑 Excel: meerdere tabbladen</h3>
     <div class="modal-body">
-      <div class="modal-hint">Dit Excel-bestand bevat <strong id="sheetPickerCount">N</strong> tabbladen. Kies welk tabblad je wil importeren — de rest wordt genegeerd (multi-sheet runtime volgt v0.3.0-Trakehner).</div>
+      <div class="modal-hint">Dit Excel-bestand bevat <strong id="sheetPickerCount">N</strong> tabbladen. Kies welk tabblad je wil importeren — de rest wordt genegeerd (multi-sheet runtime volgt v0.4.0-Akhal-Teke).</div>
       <label>Tabblad:
         <select id="sheetPickerSelect"></select>
       </label>
@@ -1171,7 +1197,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.3.0-Trakehner (codenaam Trakehner) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.4.0-Akhal-Teke (codenaam Akhal-Teke) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1501,7 +1527,7 @@ Expecting `+nr.join(", ")+", got '"+(this.terminals_[Le]||Le)+"'":Tn="Parse erro
 /* ============================================================
  * DataStore — single source of truth
  * ============================================================ */
-/* SheetHorse v0.3.0-Trakehner: DataStore is multi-sheet.
+/* SheetHorse v0.4.0-Akhal-Teke: DataStore is multi-sheet.
    Top-level rows/cols/styles/dialect verwijzen naar actieve sheet (kopie).
    sheets[] bewaart alle sheets met per-sheet state-snapshot.
    Bij switchTo(): huidige state wordt naar sheets[currentIdx] gesnapshot,
@@ -1521,6 +1547,60 @@ const DataStore = {
   relations: [],  /* [{ id, from_sheet, from_col, to_sheet, to_col, cardinality, name }] */
   _relIdSeq: 0,
   viewMode: 'data', /* 'data' (active sheet) of 'relations' (FK-tabblad) */
+
+  /* v0.4.0-Akhal-Teke: SQL met joins over multi-sheet */
+  lastQuery: '',
+  lastQueryAt: 0,
+  RESULT_SHEET_NAME: '📊 Query result',
+
+  isResultSheet(sheet) { return !!(sheet && sheet.isQueryResult); },
+  getResultSheetIdx() { return this.sheets.findIndex(s => s && s.isQueryResult); },
+
+  setQueryResult(query, cols, rows) {
+    const oldIdx = this.getResultSheetIdx();
+    if (oldIdx >= 0) {
+      this.sheets.splice(oldIdx, 1);
+      if (this.activeIdx > oldIdx) this.activeIdx--;
+      else if (this.activeIdx === oldIdx) this.activeIdx = -1;
+    }
+    const sheet = {
+      name: this.RESULT_SHEET_NAME,
+      rows: rows || [],
+      cols: cols || [],
+      styles: {},
+      dialect: { delimiter: ',', quoteChar: '"', newline: '\n', decimal: '.' },
+      _undoStack: [], _redoStack: [],
+      _filterActive: null,
+      _selR: null, _selC: null,
+      _searchQuery: '',
+      isQueryResult: true,
+      _generatedFrom: query
+    };
+    this.sheets.push(sheet);
+    this.lastQuery = query;
+    this.lastQueryAt = Date.now();
+    const newIdx = this.sheets.length - 1;
+    this.activeIdx = -1;
+    this.switchTo(newIdx, { skipSave: true });
+  },
+
+  clearQueryResult() {
+    const idx = this.getResultSheetIdx();
+    if (idx < 0) return false;
+    this.sheets.splice(idx, 1);
+    if (this.activeIdx > idx) this.activeIdx--;
+    else if (this.activeIdx === idx) this.activeIdx = -1;
+    this.lastQuery = '';
+    this.lastQueryAt = 0;
+    const target = Math.max(0, Math.min(idx - 1, this.sheets.length - 1));
+    if (this.sheets.length > 0) {
+      this.activeIdx = -1;
+      this.switchTo(target, { skipSave: true });
+    } else {
+      this.notify('sheets-changed');
+    }
+    return true;
+  },
 
   /* === Relations management === */
   addRelation(rel) {
@@ -1736,6 +1816,16 @@ const DataStore = {
         relSheet = sheets[relSheetIdx];
         sheets.splice(relSheetIdx, 1);
       }
+      /* v0.4.0: detect "_query"-sheet en lift naar DataStore.lastQuery */
+      const querySheetIdx = sheets.findIndex(s => s.name === '_query');
+      let lastQueryFromSheet = '';
+      if (querySheetIdx >= 0) {
+        const qs = sheets[querySheetIdx];
+        if (qs.rows && qs.rows[0]) {
+          lastQueryFromSheet = String(qs.rows[0][0] || '');
+        }
+        sheets.splice(querySheetIdx, 1);
+      }
       sheets.forEach(s => this.addSheet({
         name: s.name || `Sheet${this.sheets.length + 1}`,
         rows: s.rows || [],
@@ -1757,6 +1847,11 @@ const DataStore = {
             name: iNm >= 0 ? (row[iNm] || '') : ''
           });
         }
+      }
+      /* v0.4.0: restore lastQuery uit _query-sheet */
+      if (lastQueryFromSheet) {
+        this.lastQuery = lastQueryFromSheet;
+        this.lastQueryAt = Date.now();
       }
       this.activeIdx = -1;
       this.switchTo(0, { skipSave: true });
@@ -1921,7 +2016,12 @@ const SQLBuilder = {
         return `[${sc.col}]`;
       }).join(', ');
     }
-    let sql = `SELECT ${sel} FROM data`;
+    /* v0.4.0: gebruik actieve sheet-naam (of fallback 'data') als FROM */
+    const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
+    const activeSheet = DataStore.sheets[DataStore.activeIdx];
+    const fromName = (activeSheet && !activeSheet.isQueryResult) ? activeSheet.name
+                   : (sheets[0] ? sheets[0].name : 'data');
+    let sql = `SELECT ${sel} FROM [${fromName}]`;
 
     /* WHERE */
     const conds = s.where.conditions
@@ -2000,18 +2100,32 @@ const SQLEngine = {
       return false;
     }
     try {
-      const objects = DataStore.asObjects();
-      /* Register named table 'data' in AlaSQL — re-bind elke run zodat
-         actuele DataStore (incl. edits) altijd zichtbaar is voor SELECT.
-         Eerdere variant alasql(query, [objects]) ondersteunde alleen
-         FROM ?-positional, niet FROM data letterlijk (B-002 fix). */
-      if (!window.alasql.tables.data) window.alasql('CREATE TABLE data');
-      window.alasql.tables.data.data = objects;
+      /* v0.4.0-Akhal-Teke: registreer ALLE sheets als named tables
+         in AlaSQL voor multi-sheet joins. Plus backwards-compat alias 'data'
+         voor de actieve niet-result-sheet. */
+      this._syncActiveSheetToTopLevel();
+      const sheets = DataStore.sheets || [];
+      sheets.forEach(s => {
+        if (s.isQueryResult) return; /* skip eerdere result-sheets */
+        const tableName = this._tableNameFor(s.name);
+        const objs = this._sheetToObjects(s);
+        if (!window.alasql.tables[tableName]) window.alasql(`CREATE TABLE [${tableName}]`);
+        window.alasql.tables[tableName].data = objs;
+      });
+      /* Backwards-compat: 'data' = actieve niet-result-sheet (zodat v0.1.1+ queries blijven werken) */
+      const activeName = DataStore.activeName && DataStore.activeName();
+      const activeSheet = DataStore.sheets[DataStore.activeIdx];
+      if (activeSheet && !activeSheet.isQueryResult) {
+        if (!window.alasql.tables.data) window.alasql('CREATE TABLE data');
+        window.alasql.tables.data.data = this._sheetToObjects(activeSheet);
+      }
       const res = window.alasql(query);
       if (!Array.isArray(res) || res.length === 0) {
         this.lastQuery = query;
-        this.active = true;
-        this.result = { rows: [], cols: [] };
+        this.active = false;
+        this.result = null;
+        /* v0.4.0: ook lege result als sheet vastleggen (lege cols → fallback ['result']) */
+        DataStore.setQueryResult(query, ['result'], []);
         this.notify();
         return true;
       }
@@ -2027,8 +2141,11 @@ const SQLEngine = {
         return [o];
       });
       this.lastQuery = query;
-      this.active = true;
-      this.result = { rows, cols };
+      /* v0.4.0-Akhal-Teke: query-result is nu een echte sheet, niet een aparte SQL-mode.
+         active = false zodat oude UI-flow (read-only-blokkering via isQueryResult op de sheet) gebruikt wordt. */
+      this.active = false;
+      this.result = null;
+      DataStore.setQueryResult(query, cols, rows);
       this.notify();
       return true;
     } catch (e) {
@@ -2037,6 +2154,37 @@ const SQLEngine = {
       this.notify();
       return false;
     }
+  },
+
+  /* v0.4.0 helpers */
+  _syncActiveSheetToTopLevel() {
+    /* Sync DataStore.rows/cols/styles naar sheets[activeIdx] vóór query
+       (anders mist alasql de in-memory edits). */
+    const i = DataStore.activeIdx;
+    if (i >= 0 && DataStore.sheets[i] && !DataStore.sheets[i].isQueryResult) {
+      DataStore.sheets[i].rows = DataStore.rows;
+      DataStore.sheets[i].cols = DataStore.cols;
+      DataStore.sheets[i].styles = DataStore.styles;
+    }
+  },
+
+  _tableNameFor(sheetName) {
+    /* AlaSQL accepteert namen met bijzondere chars binnen [brackets].
+       We sanitiseren niets meer hier; consumer-code escapt de identifier. */
+    return String(sheetName || '');
+  },
+
+  _sheetToObjects(sheet) {
+    if (!sheet || !sheet.rows || !sheet.cols) return [];
+    const cols = sheet.cols;
+    const out = new Array(sheet.rows.length);
+    for (let i = 0; i < sheet.rows.length; i++) {
+      const o = {};
+      const row = sheet.rows[i];
+      for (let j = 0; j < cols.length; j++) o[cols[j]] = row[j];
+      out[i] = o;
+    }
+    return out;
   },
 
   clear() {
@@ -2429,7 +2577,7 @@ const SearchReplace = {
 };
 
 /* ============================================================
- * ExcelIO — XLSX import + export (SheetHorse v0.3.0-Trakehner)
+ * ExcelIO — XLSX import + export (SheetHorse v0.4.0-Akhal-Teke)
  * Wrapper rond xlsx-populate (window.XlsxPopulate)
  * ============================================================ */
 const ExcelIO = {
@@ -2735,12 +2883,14 @@ const ExportService = {
           DataStore.sheets[curIdx].cols = DataStore.cols;
           DataStore.sheets[curIdx].styles = DataStore.styles;
         }
-        const allSheets = DataStore.sheets.map(s => ({
-          name: s.name,
-          cols: s.cols,
-          rows: s.rows,
-          styles: withStyles ? s.styles : {}
-        }));
+        const allSheets = DataStore.sheets
+          .filter(s => !s.isQueryResult) /* v0.4.0: skip result-sheets uit normale export */
+          .map(s => ({
+            name: s.name,
+            cols: s.cols,
+            rows: s.rows,
+            styles: withStyles ? s.styles : {}
+          }));
         /* v0.3.0: _relations-sheet */
         if (hasRelations) {
           allSheets.push({
@@ -2750,9 +2900,21 @@ const ExportService = {
             styles: {}
           });
         }
+        /* v0.4.0: _query-metadata-sheet (query-string + timestamp + rij-aantal) */
+        if (DataStore.lastQuery) {
+          const resultIdx = DataStore.getResultSheetIdx();
+          const rowCount = resultIdx >= 0 ? DataStore.sheets[resultIdx].rows.length : 0;
+          allSheets.push({
+            name: '_query',
+            cols: ['query', 'executed_at', 'row_count'],
+            rows: [[DataStore.lastQuery, new Date(DataStore.lastQueryAt || Date.now()).toISOString(), rowCount]],
+            styles: {}
+          });
+        }
         totalRows = allSheets.reduce((sum, s) => sum + s.rows.length, 0);
         if (withStyles) totalStyleCells = allSheets.reduce((sum, s) => sum + this._countStyles(s.styles), 0);
-        sheetSummary = ` · ${allSheets.length} werkbladen${hasRelations ? ' (incl. _relations)' : ''}`;
+        const extras = [hasRelations ? '_relations' : null, DataStore.lastQuery ? '_query' : null].filter(Boolean);
+        sheetSummary = ` · ${allSheets.length} werkbladen${extras.length ? ' (incl. ' + extras.join(' + ') + ')' : ''}`;
         blob = await ExcelIO.writeMultiSheetWorkbook(allSheets);
       } else {
         blob = await ExcelIO.writeWorkbook(
@@ -2869,7 +3031,7 @@ const IO = {
     const sheetsInfo = ExcelIO.sheetsInfo(wb);
     const hasObjects = ExcelIO.hasEmbeddedObjects(wb);
 
-    /* v0.3.0-Trakehner: laad ALLE sheets (geen picker meer) */
+    /* v0.4.0-Akhal-Teke: laad ALLE sheets (geen picker meer) */
     const sheets = [];
     let totalStyleCells = 0;
     for (let i = 0; i < sheetsInfo.length; i++) {
@@ -3238,6 +3400,11 @@ const EditController = {
   isEditing() { return this.active !== null; },
   begin(r, c) {
     if (SQLEngine.active) { UI.showToast('SQL-resultaat is read-only; Wis SQL om weer te bewerken', 'warn'); return; }
+    /* v0.4.0: Query-result-sheet is read-only */
+    if (DataStore.sheets[DataStore.activeIdx] && DataStore.sheets[DataStore.activeIdx].isQueryResult) {
+      UI.showToast('Query-result-sheet is read-only — kopieer naar een nieuwe sheet om te bewerken', 'warn');
+      return;
+    }
     if (this.active) this.commit();
     if (DataStore.isEmpty()) return;
     const td = Renderer.getCellEl(r, c);
@@ -3284,6 +3451,11 @@ const EditController = {
   isEditingHeader() { return this.activeHeader !== null; },
   beginColEdit(c) {
     if (SQLEngine.active) { UI.showToast('SQL-resultaat is read-only; Wis SQL om de header te bewerken', 'warn'); return; }
+    /* v0.4.0: Query-result-sheet is read-only */
+    if (DataStore.sheets[DataStore.activeIdx] && DataStore.sheets[DataStore.activeIdx].isQueryResult) {
+      UI.showToast('Query-result-sheet header is read-only', 'warn');
+      return;
+    }
     if (this.activeHeader) this.commitColEdit();
     if (this.active) this.commit();
     if (DataStore.isEmpty()) return;
@@ -3530,7 +3702,7 @@ const UI = {
     this.els.btnRedo.addEventListener('click', () => this.redo());
   },
 
-  /* ====== Sheet-tabs strip (SheetHorse v0.3.0-Trakehner) ====== */
+  /* ====== Sheet-tabs strip (SheetHorse v0.4.0-Akhal-Teke) ====== */
   wireSheetTabs() {
     this.els.sheetTabs.addEventListener('click', (e) => {
       const close = e.target.closest('.close');
@@ -3574,6 +3746,11 @@ const UI = {
       const tab = e.target.closest('.tab');
       if (!tab || tab.dataset.idx == null) return;
       const idx = parseInt(tab.dataset.idx, 10);
+      const sheet = DataStore.sheets[idx];
+      if (sheet && sheet.isQueryResult) {
+        this.showToast('Query-result-sheet naam is vast', 'info');
+        return;
+      }
       this._beginTabRename(idx, tab);
     });
   },
@@ -3589,19 +3766,30 @@ const UI = {
     const isRelView = DataStore.viewMode === 'relations';
     DataStore.sheets.forEach((s, i) => {
       const tab = document.createElement('button');
-      tab.className = 'tab' + (!isRelView && i === DataStore.activeIdx ? ' active' : '');
+      const isResult = !!s.isQueryResult;
+      tab.className = 'tab' + (!isRelView && i === DataStore.activeIdx ? ' active' : '') + (isResult ? ' result-tab' : '');
       tab.dataset.idx = i;
-      tab.title = `${s.name} — klik om te activeren · dubbelklik om naam te bewerken`;
+      if (isResult) {
+        tab.title = `${s.name} — read-only query-result · dubbelklik niet beschikbaar`;
+      } else {
+        tab.title = `${s.name} — klik om te activeren · dubbelklik om naam te bewerken`;
+      }
       const name = document.createElement('span');
       name.className = 'name';
       name.textContent = s.name;
       tab.appendChild(name);
+      if (isResult) {
+        const ro = document.createElement('span');
+        ro.className = 'ro';
+        ro.textContent = 'RO';
+        tab.appendChild(ro);
+      }
       if (DataStore.sheets.length > 1) {
         const close = document.createElement('span');
         close.className = 'close';
         close.dataset.idx = i;
         close.textContent = '×';
-        close.title = 'Verwijder werkblad';
+        close.title = isResult ? 'Wis query-result' : 'Verwijder werkblad';
         tab.appendChild(close);
       }
       el.appendChild(tab);
@@ -3692,7 +3880,7 @@ const UI = {
     nameSpan.addEventListener('keydown', keydown);
   },
 
-  /* ====== Relations panel (v0.3.0-Trakehner) ====== */
+  /* ====== Relations panel (v0.4.0-Akhal-Teke) ====== */
   renderRelationsPanel() {
     const el = this.els.relationsPanel;
     const sheets = DataStore.sheets || [];
@@ -4628,7 +4816,8 @@ const UI = {
         this.els.opmaakPanel.classList.remove('open');
         this.els.btnFormat.classList.remove('active');
         if (!this.els.sqlText.value.trim()) {
-          this.els.sqlText.value = 'SELECT * FROM data LIMIT 50';
+          /* v0.4.0: smart default — gebruik active sheet-naam of relatie-snippet */
+          this.els.sqlText.value = this._suggestInitialQuery();
         }
         setTimeout(() => this.els.sqlText.focus(), 50);
       }
@@ -4636,6 +4825,7 @@ const UI = {
     this.els.btnRunSql.addEventListener('click', () => this.runSqlFromUI());
     this.els.btnClearSql.addEventListener('click', () => {
       SQLEngine.clear();
+      DataStore.clearQueryResult();
       this.showToast('SQL-resultaat gewist — terug naar normale view', 'info');
     });
     this.els.sqlText.addEventListener('keydown', (e) => {
@@ -4645,6 +4835,21 @@ const UI = {
         e.preventDefault(); this.els.btnSql.click();
       }
     });
+  },
+
+  _suggestInitialQuery() {
+    const sheets = (DataStore.sheets || []).filter(s => !s.isQueryResult);
+    if (sheets.length === 0) return 'SELECT * FROM data LIMIT 50';
+    /* Als laatste query bestaat: gebruik die als basis */
+    if (DataStore.lastQuery) return DataStore.lastQuery;
+    /* Als er relaties gedefinieerd zijn: stel een JOIN-snippet voor */
+    if (DataStore.relations && DataStore.relations.length > 0) {
+      const r = DataStore.relations[0];
+      return `SELECT a.*, b.* FROM [${r.from_sheet}] a JOIN [${r.to_sheet}] b ON a.[${r.from_col}] = b.[${r.to_col}] LIMIT 50`;
+    }
+    /* Default: alle uit eerste niet-result-sheet */
+    const first = sheets[0];
+    return `SELECT * FROM [${first.name}] LIMIT 50`;
   },
 
   repopulateFilterColumns() {
