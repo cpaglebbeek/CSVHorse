@@ -2,7 +2,7 @@
 
 ## Huidige fase
 
-**v0.0.3-Andalusian** — cell-edit + onbeperkte undo/redo bovenop CSV import + render.
+**v0.1.0-Lipizzaner** — UI-filter (kolom → operator → waarde) bovenop edit/undo/render.
 
 | Aspect | Status |
 |--------|--------|
@@ -12,12 +12,16 @@
 | Architectuur-viewer (`architectuur/CSVHorse_viewer.html`) | ✓ 8 ArchiMate-views, deterministisch |
 | CSV-import + render | ✓ v0.0.2-Arabian |
 | PapaParse vendored | ✓ v5.4.1 SHA256 vastgepind |
-| **Cell-edit (dubbelklik / Enter / F2)** | ✓ **werkend** (v0.0.3-Andalusian) |
-| **Onbeperkte undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)** | ✓ **werkend** |
-| **Keyboard navigatie (Arrow / Home / End / Tab / Enter)** | ✓ |
-| **Single-cell paste** | ✓ (multi-cell volgt later) |
-| **Selectie-tracking + Delete/Backspace = wis cel** | ✓ |
-| UI-filter | ⏸ v0.1.0-Lipizzaner |
+| Cell-edit (dubbelklik / Enter / F2) | ✓ v0.0.3-Andalusian |
+| Onbeperkte undo/redo (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y) | ✓ |
+| Keyboard navigatie (Arrow / Home / End / Tab / Enter) | ✓ |
+| Single-cell paste | ✓ (multi-cell volgt later) |
+| Selectie-tracking + Delete/Backspace = wis cel | ✓ |
+| **UI-filter (kolom → operator → waarde)** | ✓ **werkend** (v0.1.0-Lipizzaner) |
+| **8 operators (bevat / niet bevat / =/!= / begint met / eindigt met / leeg / niet leeg)** | ✓ |
+| **viewSet → Renderer toont subset** | ✓ |
+| **Arrow-nav respecteert viewSet** | ✓ |
+| **Filter blijft actief na cell-edit (Excel-conventie)** | ✓ |
 | SQL-panel + AlaSQL | ⏸ v0.1.1-Akhal-Teke |
 | Opmaak (bold/italic/kleur/...) | ⏸ v0.1.2-Appaloosa |
 | Autosave + zoek/vervang | ⏸ v0.2.0-Mustang |
@@ -50,3 +54,4 @@
 | 2026-05-28 | 0.0.1-Friesian | ArchiMate-architectuurviewer toegevoegd (`architectuur/CSVHorse_viewer.html`) |
 | 2026-05-28 | 0.0.2-Arabian | Werkende CSV import + render: PapaParse 5.4.1 vendored, DataStore + IO + Renderer modules, drag-drop, dialect-auto-detect, sticky header, comfortabel tot ~5k rijen |
 | 2026-05-28 | 0.0.3-Andalusian | Cell-edit + onbeperkte undo/redo: EditController + CommandHistory + Selection modules. Edit-triggers: dubbelklik / Enter / F2. Commit: Enter (volgende rij) / Tab (volgende kol) / click-buiten. Cancel: Escape. Keyboard-nav: Arrow / Home / End. Delete/Backspace = wis cel (als command). Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z of Ctrl/Cmd+Y redo. Single-cell paste. Undo-stack-counter in toolbar. |
+| 2026-05-28 | 0.1.0-Lipizzaner | UI-filter: Filter-module met viewSet (kolom → operator → waarde). 8 operators (contains/ncontains/eq/neq/starts/ends/empty/nempty). Filter-paneel toggle via ⏚-knop; kolom-dropdown + operator-dropdown + waarde-input + Toepassen/Wis-filter. Renderer respecteert viewSet. Arrow-navigatie loopt door zichtbare rijen. Filter persistent door cell-edits (Excel-conventie). Gefilterde-kolom-header krijgt ⏚-marker. Stats-counter toont "X van Y rijen — kolom op waarde". **Oranje versiebump** (design-impact). |

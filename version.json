@@ -1,7 +1,7 @@
 {
-  "version": "0.0.3",
-  "codename": "Andalusian",
+  "version": "0.1.0",
+  "codename": "Lipizzaner",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 2: cell-edit + onbeperkte undo/redo"
+  "phase": "MVP-stap 3: UI-filter (kolom -> operator -> waarde) over viewSet"
 }

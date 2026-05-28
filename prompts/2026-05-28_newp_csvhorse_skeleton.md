@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.1.0-Lipizzaner: UI-filter (kolom → operator → waarde, compile-naar-SQL placeholder)"
+resume: "verder met CSVHorse v0.1.1-Akhal-Teke: SQL-panel (AlaSQL vendored, textarea + run, multi-condition + numerieke vergelijking)"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -232,3 +232,42 @@ Uitgevoerd na skeleton-push. Score ~85% conform voor skeleton-fase: alle concept
 
 ### Nieuwe resume-trigger (overschrijft eerdere)
 **"verder met CSVHorse v0.1.0-Lipizzaner: UI-filter (kolom → operator → waarde, compile-naar-SQL placeholder)"**
+
+## v0.1.0-Lipizzaner (vijfde deelopdracht: UI-filter)
+
+**Prompt:** *"volgende versie"* → korte WhatIf met 3 defaults → *"ja, ga door"*.
+
+### Toegevoegd aan `index.html`
+- **Filter** module — `{active, viewSet, apply(condition), clear(), isActive(), visibleRowIndexes(), visibleCount(), describe()}`; 8 case-insensitive operators
+- **HTML filter-paneel** — kolom-`<select>` (autopopulated uit `DataStore.cols`), operator-`<select>` (8 opties), waarde-`<input>`, Toepassen + Wis filter knoppen, summary-text rechts
+- **Toolbar** — `⏚ Filter`-knop activeert/deactiveert het paneel; krijgt blauwe `active`-class als paneel open of filter actief
+- **Renderer.renderAll** — itereert over `Filter.visibleRowIndexes()` i.p.v. alle rows; gefilterde-kolom-header krijgt `.filtered`-class (blauwe tekst + ⏚-suffix)
+- **Selection.set** — guards: als doel-r niet in viewSet, snap naar dichtstbij volgende zichtbare rij
+- **Selection.move(dr=±1, 0)** — itereert door `visibleRowIndexes`-volgorde i.p.v. raw indexen
+- **UI.onFilterChanged** — re-render + stats-update + phase-badge naar "gefilterd" + filter-summary
+- **CSS** — `.filter-panel.open`, `.toolbar button.active`, `.filtered`-th-marker, `.filter-info` accent-2 kleur in stats
+- **Edge cases** — bij file-clear ook `Filter.clear()`; bij paneel open: focus op waarde-input; Enter in waarde-input = Toepassen, Escape = paneel sluiten; bij operator `empty`/`nempty` verbergt waarde-input
+
+### Filter-semantiek
+- **Persistent na cell-edit** (Excel-conventie): rij die niet meer voldoet aan de filter blijft zichtbaar tot expliciete re-toepassen
+- **`data-r` blijft origin-index**: undo/redo/edit blijft werken op originele row-ID's, ook in gefilterde view
+- **Cell-update via `cell`-event**: enkele cel update doet géén volledige re-render (geen herfilteren-flicker)
+- **Filter wist Selection** bij toepassen (anders kan selectie buiten viewSet vallen)
+
+### File-statistieken na v0.1.0
+- `index.html`: 1.195 regels / 63.752 bytes (was 983/52.850 in v0.0.3)
+- Eigen JS-blok: 29.235 chars (+37% vs v0.0.3, +224% vs v0.0.2)
+- PapaParse blok onveranderd: 19.471 chars
+
+### Verificatie
+- **JS-syntaxcheck:** beide `<script>`-blokken groen via `new Function()` (PapaParse 19.471 + app 29.235 chars)
+- **Browser-open:** index.html herladen — filter-paneel werkt; gefilterde kolom-header krijgt ⏚-marker; Arrow-nav respecteert viewSet
+
+### Niet in v0.1.0 (latere plateaus)
+- Multi-condition AND/OR — via SQL-panel (v0.1.1-Akhal-Teke)
+- Numerieke operators (<, >, between) — via SQL-panel
+- Sort by column — niet in scope; via SQL `ORDER BY`
+- Filter op meerdere kolommen tegelijk — via SQL
+
+### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.1.1-Akhal-Teke: SQL-panel (AlaSQL vendored, textarea + run, multi-condition + numerieke vergelijking)"**
