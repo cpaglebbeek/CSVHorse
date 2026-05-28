@@ -1,0 +1,102 @@
+name: Deploy CSVHorse + SheetHorse to Pages
+
+on:
+  push:
+    branches: [main, sheethorse]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main (CSVHorse-light)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: csvhorse-main
+
+      - name: Checkout sheethorse (SheetHorse-full)
+        uses: actions/checkout@v4
+        with:
+          ref: sheethorse
+          path: sheethorse
+
+      - name: Assemble _site
+        run: |
+          mkdir -p _site
+          # CSVHorse light op root
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='prompts' \
+            csvhorse-main/ _site/
+          # SheetHorse full onder /sheethorse/
+          mkdir -p _site/sheethorse
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='prompts' \
+            sheethorse/ _site/sheethorse/
+          # Landing-index met links naar beide
+          cat > _site/landing.html <<'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="nl"><head>
+          <meta charset="utf-8"><title>CSVHorse + SheetHorse</title>
+          <style>
+            body{font-family:system-ui;background:#0f1115;color:#e6e9ef;margin:0;padding:2rem;display:flex;flex-direction:column;gap:1.5rem;align-items:center;justify-content:center;min-height:100vh}
+            .card{background:#161a22;border:1px solid #2a3140;border-radius:8px;padding:1.5rem;max-width:600px}
+            h1{color:#59c5a8;margin-top:0}
+            a{color:#4ab3ff;text-decoration:none}
+            a:hover{text-decoration:underline}
+            .badge{display:inline-block;background:#264f3a;color:#7ad8be;padding:.2rem .5rem;border-radius:99px;font-size:.75rem;margin-left:.5rem}
+            .badge.full{background:#3a2a14;color:#f0c674}
+          </style></head>
+          <body>
+          <div class="card">
+            <h1>iCt Horse · Data tools</h1>
+            <p>Twee productvarianten op één codebase (1 repo, 2 branches):</p>
+            <p>
+              <a href="./"><strong>CSVHorse</strong></a>
+              <span class="badge">light</span>
+              <br>Single-table CSV-werkbank · SQL · opmaak · autosave · zoek/vervang
+            </p>
+            <p>
+              <a href="./sheethorse/"><strong>SheetHorse</strong></a>
+              <span class="badge full">full</span>
+              <br>Virtuele relationele DB · Excel (.xlsx) import + export met opmaak · multi-sheet (komt: relaties + SQL-joins)
+            </p>
+            <p style="margin-top:2rem;font-size:.8rem;color:#9aa3b2">
+              Source: <a href="https://github.com/cpaglebbeek/CSVHorse">cpaglebbeek/CSVHorse</a>
+              · AGPL-3.0 · iCt Horse Diensten
+            </p>
+          </div>
+          </body></html>
+          HTMLEOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
