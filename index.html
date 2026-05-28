@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.6.0.1-Hanoverian (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.6.0.2-Hanoverian (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -899,7 +899,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.6.0.1-Hanoverian</span>
+  <span class="badge">v0.6.0.2-Hanoverian</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -917,7 +917,7 @@
   <button id="btnUndo" title="Ongedaan maken (Ctrl/Cmd+Z)" disabled>⤺ Undo</button>
   <button id="btnRedo" title="Opnieuw (Ctrl/Cmd+Shift+Z of Ctrl/Cmd+Y)" disabled>⤻ Redo</button>
   <span class="sep"></span>
-  <!-- v0.6.0.1-Hanoverian: rij/kolom-CRUD knoppen (F-001 + F-002) -->
+  <!-- v0.6.0.2-Hanoverian: rij/kolom-CRUD knoppen (F-001 + F-002) -->
   <button id="btnAddRow" title="Voeg rij toe (onder selectie, of onderaan)" disabled>＋ Rij</button>
   <button id="btnDelRow" title="Verwijder geselecteerde rij" disabled>－ Rij</button>
   <button id="btnAddCol" title="Voeg kolom toe (rechts van selectie, of achteraan)" disabled>＋ Kolom</button>
@@ -1025,7 +1025,7 @@
     </div>
   </div>
   <div class="sql-builder" id="sqlBuilder" role="region" aria-label="SQL builder">
-    <!-- v0.6.0.1-Hanoverian F-003: multi-tabel FROM + JOIN-rijen -->
+    <!-- v0.6.0.2-Hanoverian F-003: multi-tabel FROM + JOIN-rijen -->
     <div class="builder-row">
       <span class="label">FROM</span>
       <div class="col-stack">
@@ -1213,7 +1213,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.6.0.1-Hanoverian (codenaam Hanoverian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.6.0.2-Hanoverian (codenaam Hanoverian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -2012,7 +2012,7 @@ const SQLBuilder = {
   AGGS: ['', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX'],
 
   state: {
-    /* v0.6.0.1-Hanoverian F-003: multi-tabel FROM + JOIN */
+    /* v0.6.0.2-Hanoverian F-003: multi-tabel FROM + JOIN */
     fromSheet: '',          /* sheet-naam (eerste tabel) */
     joins: [],              /* [{ type, sheet, leftCol, rightCol }] — type=INNER/LEFT/RIGHT */
     selectMode: 'all',      /* 'all' | 'cols' */
@@ -2046,7 +2046,7 @@ const SQLBuilder = {
         return `[${sc.col}]`;
       }).join(', ');
     }
-    /* v0.6.0.1-Hanoverian F-003: multi-tabel FROM + JOIN */
+    /* v0.6.0.2-Hanoverian F-003: multi-tabel FROM + JOIN */
     const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
     const activeSheet = DataStore.sheets[DataStore.activeIdx];
     const fromName = s.fromSheet
@@ -2281,7 +2281,7 @@ function SetColNameCommand(c, oldVal, newVal) {
     revert() { DataStore.cols[c] = oldVal; DataStore.notify('cols', { c }); } };
 }
 
-/* v0.6.0.1-Hanoverian: Rij/kolom-CRUD commands (F-001 + F-002). */
+/* v0.6.0.2-Hanoverian: Rij/kolom-CRUD commands (F-001 + F-002). */
 function InsertRowCommand(rIdx, rowData) {
   return { type:'insertRow', r:rIdx, c:null, rowData,
     apply() {
@@ -4138,7 +4138,7 @@ const UI = {
   wireUndoRedoButtons() {
     this.els.btnUndo.addEventListener('click', () => this.undo());
     this.els.btnRedo.addEventListener('click', () => this.redo());
-    /* v0.6.0.1-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
+    /* v0.6.0.2-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
     this.els.btnAddRow.addEventListener('click', () => this.addRowAtSelection());
     this.els.btnDelRow.addEventListener('click', () => this.delRowAtSelection());
     this.els.btnAddCol.addEventListener('click', () => this.addColAtSelection());
@@ -5050,7 +5050,7 @@ const UI = {
       this.els.btnToggleBuilder.classList.toggle('active', open);
       if (open) this.refreshBuilderColumns();
     });
-    /* v0.6.0.1-Hanoverian F-003: FROM + JOIN handlers */
+    /* v0.6.0.2-Hanoverian F-003: FROM + JOIN handlers */
     this.els.fromSheet.addEventListener('change', (e) => {
       SQLBuilder.state.fromSheet = e.target.value;
       this.refreshBuilderColumns();
@@ -5092,7 +5092,7 @@ const UI = {
   },
 
   refreshBuilderColumns() {
-    /* v0.6.0.1-Hanoverian F-003: FROM-dropdown vullen + JOIN-rijen renderen */
+    /* v0.6.0.2-Hanoverian F-003: FROM-dropdown vullen + JOIN-rijen renderen */
     const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
     if (this.els.fromSheet) {
       const prevFrom = SQLBuilder.state.fromSheet
@@ -5477,7 +5477,10 @@ const UI = {
     this.els.btnClearSql.addEventListener('click', () => {
       SQLEngine.clear();
       DataStore.clearQueryResult();
-      this.showToast('SQL-resultaat gewist — terug naar normale view', 'info');
+      /* v0.6.0.2 B-010: ook textarea + error leegmaken */
+      this.els.sqlText.value = '';
+      this.els.sqlError.textContent = '';
+      this.showToast('SQL-resultaat + query gewist', 'info');
     });
     this.els.sqlText.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -5753,7 +5756,7 @@ const UI = {
     }
   },
 
-  /* v0.6.0.1-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
+  /* v0.6.0.2-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
   addRowAtSelection() {
     if (SQLEngine.active) { this.showToast('Niet beschikbaar in SQL-mode', 'info'); return; }
     if (EditController.isEditing()) EditController.commit();

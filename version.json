@@ -2,9 +2,9 @@
   "product": "SheetHorse",
   "branch": "sheethorse",
   "forkedFrom": "CSVHorse v0.2.0.2-Mustang (main branch) — incl. cherry-pick v0.2.0.3 header-edit",
-  "version": "0.6.0.1",
+  "version": "0.6.0.2",
   "codename": "Hanoverian",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "v0.6.0.1 bugfix-release (geel): B-009 XLSX-import past nu IO.liftStyles toe op headers — als XLSX __style_<prop>__<colname> kolommen bevat (via een CSV→Excel-conversie buiten SheetHorse) worden ze nu correct gelift en samengevoegd met native Excel cell-styles (Excel-styles winnen bij conflict). + diagnostische console.log bij XLSX-import (sheets / cell-styles / __style_*-cols gelift / _relations / _query). + nieuw voorbeeldbestand docs/examples/multi-table-example.xlsx met native Excel cell-styles + _relations + _query (gegenereerd via openpyxl-script)."
+  "phase": "v0.6.0.2 bugfix-release (geel): B-010 'Wis SQL'-knop leegt nu ook de SQL-textarea + foutmelding (niet alleen SQL-resultaat-state). Eerder bleef de query in de textarea staan na klikken op Wis."
 }

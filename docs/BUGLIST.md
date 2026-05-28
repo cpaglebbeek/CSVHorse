@@ -8,6 +8,19 @@ _Geen._
 
 ## Opgeloste bugs
 
+### B-010 — "Wis SQL"-knop leegt textarea niet (geel)
+
+**Datum:** 2026-05-28
+**Versie:** v0.6.0.2-Hanoverian
+**Symptoom:** Klik op "Wis SQL"-knop in SQL-paneel: resultaat verdwijnt (view gaat terug naar data), maar de SQL-query blijft in de textarea staan + eventuele foutmelding blijft zichtbaar.
+
+**RCA (3 niveaus):**
+- **Functioneel:** "Wis" is voor de gebruiker een totaal-reset; halve reset wekt de indruk dat de knop deels werkt.
+- **Technisch:** `btnClearSql`-handler deed alleen `SQLEngine.clear()` + `DataStore.clearQueryResult()` + toast — vergat `sqlText.value = ''` en `sqlError.textContent = ''`.
+- **Architectonisch:** ontbrekende state-reset bij een "clear all"-actie. State leeft op meerdere plekken (engine, store, textarea-DOM, error-DOM) maar niet alle paden waren gevoegd.
+
+**Fix:** handler aangevuld met textarea-leegmaken en error-leegmaken. Toast bijgewerkt naar "SQL-resultaat + query gewist" voor accuratere feedback.
+
 ### B-009 — XLSX-import lift `__style_*`-kolommen niet, ze blijven als datakolommen zichtbaar (geel)
 
 **Datum:** 2026-05-28
