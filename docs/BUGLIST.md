@@ -8,6 +8,23 @@ _Geen._
 
 ## Opgeloste bugs
 
+### B-009 — XLSX-import lift `__style_*`-kolommen niet, ze blijven als datakolommen zichtbaar (geel)
+
+**Datum:** 2026-05-28
+**Versie:** v0.6.0-Hanoverian (zichtbaar), gefixt in v0.6.0.1-Hanoverian
+**Symptoom:** Bij import van een XLSX met `__style_<prop>__<colname>` headers (door een CSV→Excel-conversie via een externe tool) bleven die kolommen zichtbaar als data, in plaats van als opmaak op de echte kolommen gelift te worden. Niet zichtbaar bij pure SheetHorse-roundtrip (daar gaan styles via native Excel cell-styles), wel bij externe conversie van CSV-met-metadata.
+
+**RCA (3 niveaus):**
+- **Functioneel:** XLSX-content krijgt geen opmaak; gebruiker ziet "rauwe" `__style_*`-kolommen.
+- **Technisch:** `_parseXlsxFile` riep `ExcelIO.liftSheetData` aan (lift native cell-styles) maar NIET `IO.liftStyles` op de gelifte data. Dat laatste is CSV-specifiek en werd alleen door `parseFile`-CSV-pad en `liftMultiSheetCsv` per TABLE-blok aangeroepen.
+- **Architectonisch:** style-lifting was alleen voor CSV-pad gemodelleerd. Het feit dat een XLSX óók `__style_*`-kolommen kan bevatten (na externe conversie) was niet meegenomen.
+
+**Fix:** `_parseXlsxFile` controleert per sheet of headers `IO.STYLE_COL_PATTERN` matchen. Zo ja: `IO.liftStyles(rows, cols)` aanroepen, dan native Excel-styles (uit `data.styles`) **overlayen** op de gemapte kolom-indexen — Excel-cell-styles winnen bij conflict (zijn altijd "echter" dan CSV-tag-based). Header-index-shift correct toegepast via `colMap`.
+
+**Diagnostiek:** XLSX-import logt nu `[SheetHorse XLSX-import] file=X · N sheets · cell-styles: M · __style_*-cols gelift: K · _relations: JA/nee · _query: JA/nee`. Toast meldt `· K __style_*-kolom(men) gelift uit headers` bij positief detect.
+
+**Preventie:** patroon `STYLE-LIFTING-PARITY-001` — bij elke parse-path die headers + rows oplevert, controleer of het CSV-specifieke `IO.liftStyles` óók nodig is naast eventuele native-format style-lifting. Geldt voor XLSX, en in de toekomst potentieel ODS, JSON, etc.
+
 ### B-008 — Nieuw werkblad start altijd als 1×1, geen schema-keuze (geel feature-gap)
 
 **Datum:** 2026-05-28
@@ -165,6 +182,7 @@ Te vullen tijdens MVP-implementatie en daarna. Initiële verwachte categorieën 
 | FORMAT-CONTRACT-001 | Parse | Header-naming-mismatch tussen publicatie (`from_table`) en parser (`from_sheet`) → blok stil overgeslagen | Mensgerichte CSV/JSON-formats: lijst van geaccepteerde header-synoniemen vooraf vastleggen + testbestand met beide vormen; nooit `continue` zonder `console.warn` bij onbekende headers |
 | UI-STATE-001 | UI | Add-row dropdowns afhankelijk van eerder gekozen dropdown her-renderen niet bij sheet-change → input feitelijk dood | Voor transiente UI-state een lokale rebuild-pad bewaren (td-references in een map); observer-notifies dekken alleen committed DataStore-state, niet pre-commit form-state |
 | ROUNDTRIP-EXAMPLE-001 | Docs | Publiek voorbeeldbestand gebruikt format dat eigen parser niet implementeert | Bij elk voorbeeld in `docs/examples/`: import → export → diff-check vóór publicatie; format-spec in README moet 1-op-1 met parser-regex matchen |
+| STYLE-LIFTING-PARITY-001 | Parse | Per-format style-lifting niet gelijkaardig toegepast (CSV-pad lift `__style_*`, XLSX-pad niet) | Bij elke nieuwe parse-path die headers + rows oplevert: ook altijd `IO.liftStyles` proberen naast native-format style-lifting; merge met native styles, native wint bij conflict |
 
 ## Globale referentie
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>SheetHorse — virtuele relationele DB (Excel + multi-tabel)</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="SheetHorse v0.6.0-Hanoverian (forked from CSVHorse v0.2.0.2-Mustang)">
+  <meta name="generator" content="SheetHorse v0.6.0.1-Hanoverian (forked from CSVHorse v0.2.0.2-Mustang)">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -899,7 +899,7 @@
 
 <header class="app">
   <h1>Sheet<span class="accent">Horse</span></h1>
-  <span class="badge">v0.6.0-Hanoverian</span>
+  <span class="badge">v0.6.0.1-Hanoverian</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -917,7 +917,7 @@
   <button id="btnUndo" title="Ongedaan maken (Ctrl/Cmd+Z)" disabled>⤺ Undo</button>
   <button id="btnRedo" title="Opnieuw (Ctrl/Cmd+Shift+Z of Ctrl/Cmd+Y)" disabled>⤻ Redo</button>
   <span class="sep"></span>
-  <!-- v0.6.0-Hanoverian: rij/kolom-CRUD knoppen (F-001 + F-002) -->
+  <!-- v0.6.0.1-Hanoverian: rij/kolom-CRUD knoppen (F-001 + F-002) -->
   <button id="btnAddRow" title="Voeg rij toe (onder selectie, of onderaan)" disabled>＋ Rij</button>
   <button id="btnDelRow" title="Verwijder geselecteerde rij" disabled>－ Rij</button>
   <button id="btnAddCol" title="Voeg kolom toe (rechts van selectie, of achteraan)" disabled>＋ Kolom</button>
@@ -1025,7 +1025,7 @@
     </div>
   </div>
   <div class="sql-builder" id="sqlBuilder" role="region" aria-label="SQL builder">
-    <!-- v0.6.0-Hanoverian F-003: multi-tabel FROM + JOIN-rijen -->
+    <!-- v0.6.0.1-Hanoverian F-003: multi-tabel FROM + JOIN-rijen -->
     <div class="builder-row">
       <span class="label">FROM</span>
       <div class="col-stack">
@@ -1213,7 +1213,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  SheetHorse v0.6.0-Hanoverian (codenaam Hanoverian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  SheetHorse v0.6.0.1-Hanoverian (codenaam Hanoverian) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -2012,7 +2012,7 @@ const SQLBuilder = {
   AGGS: ['', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX'],
 
   state: {
-    /* v0.6.0-Hanoverian F-003: multi-tabel FROM + JOIN */
+    /* v0.6.0.1-Hanoverian F-003: multi-tabel FROM + JOIN */
     fromSheet: '',          /* sheet-naam (eerste tabel) */
     joins: [],              /* [{ type, sheet, leftCol, rightCol }] — type=INNER/LEFT/RIGHT */
     selectMode: 'all',      /* 'all' | 'cols' */
@@ -2046,7 +2046,7 @@ const SQLBuilder = {
         return `[${sc.col}]`;
       }).join(', ');
     }
-    /* v0.6.0-Hanoverian F-003: multi-tabel FROM + JOIN */
+    /* v0.6.0.1-Hanoverian F-003: multi-tabel FROM + JOIN */
     const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
     const activeSheet = DataStore.sheets[DataStore.activeIdx];
     const fromName = s.fromSheet
@@ -2281,7 +2281,7 @@ function SetColNameCommand(c, oldVal, newVal) {
     revert() { DataStore.cols[c] = oldVal; DataStore.notify('cols', { c }); } };
 }
 
-/* v0.6.0-Hanoverian: Rij/kolom-CRUD commands (F-001 + F-002). */
+/* v0.6.0.1-Hanoverian: Rij/kolom-CRUD commands (F-001 + F-002). */
 function InsertRowCommand(rIdx, rowData) {
   return { type:'insertRow', r:rIdx, c:null, rowData,
     apply() {
@@ -3419,16 +3419,53 @@ const IO = {
     /* v0.5.0-Knabstrupper: laad ALLE sheets (geen picker meer) */
     const sheets = [];
     let totalStyleCells = 0;
+    let totalCsvStyleColsLifted = 0;
     for (let i = 0; i < sheetsInfo.length; i++) {
       const xSheet = wb.sheet(i);
       const data = ExcelIO.liftSheetData(xSheet);
-      const styleCount = Object.values(data.styles).reduce((s, r) => s + Object.keys(r).length, 0);
+      /* v0.6.0.1 B-009: pas óók CSV-style-lifting toe op headers — voor het geval de XLSX
+         __style_<prop>__<colname> kolommen bevat (bv. door een CSV→Excel-conversie buiten SheetHorse). */
+      const cmdHasStyleCols = data.cols.some(c => IO.STYLE_COL_PATTERN.test(c));
+      let finalRows = data.rows;
+      let finalCols = data.cols;
+      let finalStyles = data.styles;
+      if (cmdHasStyleCols) {
+        const liftedCsv = IO.liftStyles(data.rows, data.cols);
+        finalRows = liftedCsv.rows;
+        finalCols = liftedCsv.cols;
+        /* Merge: native Excel cell-styles winnen bij conflict — maar refactor indexen want
+           kolommen zijn ge-shift door style-col-verwijdering. */
+        const colMap = {}; /* origIdx → newIdx */
+        let newIdx = 0;
+        for (let oi = 0; oi < data.cols.length; oi++) {
+          if (!IO.STYLE_COL_PATTERN.test(data.cols[oi])) {
+            colMap[oi] = newIdx++;
+          }
+        }
+        const mergedStyles = {};
+        /* Start met CSV-gelifte styles */
+        for (const r in liftedCsv.styles) {
+          mergedStyles[r] = Object.assign({}, liftedCsv.styles[r]);
+        }
+        /* Overlay native Excel-styles op gemapte indexen */
+        for (const r in data.styles) {
+          if (!mergedStyles[r]) mergedStyles[r] = {};
+          for (const c in data.styles[r]) {
+            const mapped = colMap[c];
+            if (mapped == null) continue; /* style-col zelf, skip */
+            mergedStyles[r][mapped] = Object.assign({}, mergedStyles[r][mapped] || {}, data.styles[r][c]);
+          }
+        }
+        finalStyles = mergedStyles;
+        totalCsvStyleColsLifted += (data.cols.length - finalCols.length);
+      }
+      const styleCount = Object.values(finalStyles).reduce((s, r) => s + Object.keys(r).length, 0);
       totalStyleCells += styleCount;
       sheets.push({
         name: sheetsInfo[i].name || `Sheet${i + 1}`,
-        rows: data.rows,
-        cols: data.cols,
-        styles: data.styles,
+        rows: finalRows,
+        cols: finalCols,
+        styles: finalStyles,
         dialect: { delimiter: ',', newline: '\n', quoteChar: '"', decimal: '.' }
       });
     }
@@ -3436,6 +3473,14 @@ const IO = {
     if (hasObjects) {
       setTimeout(() => UI.showToast('⚠ Bestand bevat afbeeldingen/charts/embedded-objects — NIET geïmporteerd; alleen cell-data + opmaak', 'warn'), 200);
     }
+
+    /* v0.6.0.1 B-009: diagnostiek logging */
+    console.log('[SheetHorse XLSX-import] file=' + file.name,
+      '· ' + sheets.length + ' sheets',
+      '· cell-styles: ' + totalStyleCells,
+      '· __style_*-cols gelift: ' + totalCsvStyleColsLifted,
+      '· _relations sheet: ' + (sheets.some(s => s.name === '_relations') ? 'JA' : 'nee'),
+      '· _query sheet: ' + (sheets.some(s => s.name === '_query') ? 'JA' : 'nee'));
 
     return {
       /* Top-level voor backwards-compat (active = sheet 0) */
@@ -3447,6 +3492,7 @@ const IO = {
       errors: [],
       stylesLifted: totalStyleCells > 0 ? 1 : 0,
       styleCellCount: totalStyleCells,
+      csvStyleColsLifted: totalCsvStyleColsLifted,
       sourceFormat: 'xlsx',
       sourceSheet: sheetsInfo[0] ? sheetsInfo[0].name : '',
       totalSheets: sheetsInfo.length,
@@ -4092,7 +4138,7 @@ const UI = {
   wireUndoRedoButtons() {
     this.els.btnUndo.addEventListener('click', () => this.undo());
     this.els.btnRedo.addEventListener('click', () => this.redo());
-    /* v0.6.0-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
+    /* v0.6.0.1-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
     this.els.btnAddRow.addEventListener('click', () => this.addRowAtSelection());
     this.els.btnDelRow.addEventListener('click', () => this.delRowAtSelection());
     this.els.btnAddCol.addEventListener('click', () => this.addColAtSelection());
@@ -5004,7 +5050,7 @@ const UI = {
       this.els.btnToggleBuilder.classList.toggle('active', open);
       if (open) this.refreshBuilderColumns();
     });
-    /* v0.6.0-Hanoverian F-003: FROM + JOIN handlers */
+    /* v0.6.0.1-Hanoverian F-003: FROM + JOIN handlers */
     this.els.fromSheet.addEventListener('change', (e) => {
       SQLBuilder.state.fromSheet = e.target.value;
       this.refreshBuilderColumns();
@@ -5046,7 +5092,7 @@ const UI = {
   },
 
   refreshBuilderColumns() {
-    /* v0.6.0-Hanoverian F-003: FROM-dropdown vullen + JOIN-rijen renderen */
+    /* v0.6.0.1-Hanoverian F-003: FROM-dropdown vullen + JOIN-rijen renderen */
     const sheets = (DataStore.sheets || []).filter(x => !x.isQueryResult);
     if (this.els.fromSheet) {
       const prevFrom = SQLBuilder.state.fromSheet
@@ -5707,7 +5753,7 @@ const UI = {
     }
   },
 
-  /* v0.6.0-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
+  /* v0.6.0.1-Hanoverian: rij/kolom-CRUD handlers (F-001 + F-002) */
   addRowAtSelection() {
     if (SQLEngine.active) { this.showToast('Niet beschikbaar in SQL-mode', 'info'); return; }
     if (EditController.isEditing()) EditController.commit();
@@ -5804,6 +5850,14 @@ const UI = {
       let msg = `Geladen: ${file.name} — ${c.rows} rij${c.rows === 1 ? '' : 'en'} × ${c.cols} kolom${c.cols === 1 ? '' : 'men'}`;
       if (result.sourceFormat === 'xlsx') {
         msg += ` · ${result.totalSheets} werkblad${result.totalSheets === 1 ? '' : 'en'}`;
+        /* v0.6.0.1 B-009: feedback bij __style_*-kolom-lift uit XLSX */
+        if (result.csvStyleColsLifted > 0) {
+          msg += ` · ${result.csvStyleColsLifted} __style_*-kolom${result.csvStyleColsLifted === 1 ? '' : 'men'} gelift uit headers`;
+        }
+        /* Relations / query feedback ook voor XLSX */
+        const relSheetFound = DataStore.relations && DataStore.relations.length > 0;
+        if (relSheetFound) msg += ` + ${DataStore.relations.length} relatie${DataStore.relations.length === 1 ? '' : 's'}`;
+        if (DataStore.lastQuery) msg += ` + 1 query`;
       } else if (result.sourceFormat === 'csv-multi') {
         /* v0.5.0.2 B-007: expliciete feedback bij multi-tabel CSV detect */
         const relCount = (result.relations || []).length;
