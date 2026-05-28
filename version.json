@@ -1,7 +1,7 @@
 {
-  "version": "0.1.4",
-  "codename": "Trakehner",
+  "version": "0.1.5",
+  "codename": "Tinker",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 7: __style_* CSV-roundtrip (scope-shift van v0.4.0-Shire) + export-dialog modal"
+  "phase": "MVP-stap 8: SQL query-builder (visuele clauses naast textarea — SELECT/WHERE/GROUP BY/ORDER BY/LIMIT met dropdowns)"
 }

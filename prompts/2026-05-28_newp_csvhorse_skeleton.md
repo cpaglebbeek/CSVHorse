@@ -2,7 +2,7 @@
 date: 2026-05-28
 repo: CSVHorse
 status: open
-resume: "verder met CSVHorse v0.1.5-Tinker: SQL query-builder (visuele clauses naast textarea — SELECT/WHERE/GROUP BY/ORDER BY/LIMIT met dropdowns)"
+resume: "verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"
 ---
 
 # Sessie 2026-05-28 — newp CSVHorse skeleton
@@ -512,6 +512,69 @@ HTML-rij met:
 - Per-rij/per-kolom bulk opmaak in 1 klik — out of scope
 
 ### Nieuwe resume-trigger (overschrijft eerdere)
+**"verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"**
+
+## v0.1.5-Tinker (tiende deelopdracht: SQL query-builder)
+
+**Prompt-keten:**
+1. Earlier user request: *"feature: bij sql moeten logische bouwblokken met waarden via pulldown menu's"* — geparkeerd voor aparte release na v0.1.4 roundtrip
+2. *"volgende versie"* → korte WhatIf met 4 defaults → akkoord op 1 keer
+3. *"ja, ga door"* (na hard-refresh-bevestiging B-003)
+
+### Toegevoegd
+- **`SQLBuilder` module** — state-driven query-builder
+  - `OPS[]`: 11 operators met label-mapping (`=`, `!=`, `<`, `<=`, `>`, `>=`, `LIKE %x%`, `NOT LIKE %x%`, `IS NULL`, `IS NOT NULL`, `BETWEEN a,b`)
+  - `AGGS[]`: `''` (raw), `COUNT`, `SUM`, `AVG`, `MIN`, `MAX`
+  - `state`: `{ selectMode, selectCols[], where{logic, conditions[]}, groupBy[], orderBy[], limit }`
+  - `reset()`, `buildSQL()`, `_buildCondition()`, `_maybeQuote()`, `_escStr()`
+
+- **Builder-paneel HTML** in sql-panel:
+  - SELECT-rij: radio "Alle (*)" vs "Multi-select kolommen"
+  - WHERE-rij: dynamische `whereRows`-container met add-button + AND/OR-dropdown
+  - GROUP BY: multi-select
+  - ORDER BY: dynamische `orderRows`-container met add-button
+  - LIMIT: numeric input
+  - 3 actions: `⤵ Bouw query` (textarea) · `Wis builder` · `⤵▶ Bouw + Run`
+
+- **CSS** (~80 regels) — `.sql-builder.open`, `.builder-row`, `.where-row`, `.order-row`, `.add-btn`, `.icon-btn`, `.builder-actions` met gele accent (consistent met SQL-thema)
+
+- **UI wiring** in `wireSqlBuilder()`:
+  - Toggle-knop `🧩 Builder` opent/sluit het paneel
+  - Radio selectMode switch enable/disable van multi-select
+  - Dynamische `whereRows` rendering via `renderWhereRows()` — per condition: kolom-select + operator-select + value-input + ✕-knop; value-input disabled bij IS NULL/IS NOT NULL
+  - Dynamische `orderRows` rendering via `renderOrderRows()` — per item: kolom-select + ASC/DESC-select + ✕-knop
+  - Add-buttons pushen nieuwe entry naar state + re-render
+  - `_escHtml/_escAttr` helpers voor veilige innerHTML
+
+- **Reset bij file-load + bij `↺ Wis`**: `SQLBuilder.reset()` toegevoegd
+- **Refresh bij data-load** als builder open is: `refreshBuilderColumns()` populeert select-opties met nieuwe kolommen
+
+### SQL-output identifier-escape
+Alle kolomnamen ge-escapeerd met `[...]`-brackets (AlaSQL native syntax) zodat kolommen met spaties/speciale chars correct werken. Aggregates krijgen alias `[<col>_<agg_lower>]` om GROUP BY duplicates te voorkomen.
+
+### Functioneel test (Node, 5 scenario's)
+| # | Input | Output |
+|---|-------|--------|
+| 1 | LIMIT 10 | `SELECT * FROM data LIMIT 10` |
+| 2 | SELECT naam,leeftijd · WHERE leeftijd>30 AND stad LIKE Haar | `SELECT [naam], [leeftijd] FROM data WHERE [leeftijd] > 30 AND [stad] LIKE '%Haar%'` |
+| 3 | SELECT stad,COUNT(naam) GROUP BY stad ORDER BY stad | `SELECT [stad], COUNT([naam]) AS [naam_count] FROM data GROUP BY [stad] ORDER BY [stad] ASC` |
+| 4 | WHERE leeftijd BETWEEN 25,40 AND stad IS NOT NULL | `SELECT * FROM data WHERE [leeftijd] BETWEEN 25 AND 40 AND [stad] IS NOT NULL` |
+| 5 | WHERE OR — stad=Haarlem OR stad=Utrecht | `SELECT * FROM data WHERE [stad] = 'Haarlem' OR [stad] = 'Utrecht'` |
+
+### File-statistieken na v0.1.5
+- `index.html`: **2.954 regels / 635 KB** (was 2.498 / 617 KB)
+- Eigen JS-blok: **71.622 chars** (+12KB)
+- PapaParse + AlaSQL onveranderd
+- JS-syntax: alle 3 blokken groen
+
+### Niet in v0.1.5
+- Complexe AND/OR-groepering met haakjes
+- Joins met externe tabellen
+- Sub-queries via UI (vrij typen blijft mogelijk)
+- Auto-type-detect kolommen
+- Save/load van builder-presets
+
+### Resume-trigger (overschrijft)
 **"verder met CSVHorse v0.2.0-Mustang: autosave naar localStorage (throttled snapshot + AAN/UIT-schuif) + zoek/vervang dialog (regex + scope alles/kolom/selectie + volgende/vorige) — oranje versiebump"**
 
 ## v0.1.4-Trakehner (negende deelopdracht: `__style_*` CSV-roundtrip + export-dialog)

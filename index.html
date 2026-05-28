@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>CSVHorse — CSV viewer &amp; editor</title>
   <meta name="description" content="Standalone single-file HTML CSV viewer en editor met SQL, rich-text opmaak, autosave en undo/redo.">
-  <meta name="generator" content="CSVHorse v0.1.4-Trakehner">
+  <meta name="generator" content="CSVHorse v0.1.5-Tinker">
   <style>
     :root {
       --color-bg:           #0f1115;
@@ -265,6 +265,101 @@
       color:var(--color-danger); font-family:var(--font-mono); font-size:.78rem;
     }
 
+    /* SQL builder (v0.1.5-Tinker) */
+    .sql-builder {
+      padding:var(--space-3);
+      background:var(--color-surface-2);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      display:none;
+      flex-direction:column; gap:var(--space-2);
+    }
+    .sql-builder.open { display:flex; }
+    .sql-builder .builder-row {
+      display:flex; gap:var(--space-2); align-items:flex-start; flex-wrap:wrap;
+    }
+    .sql-builder .builder-row .label {
+      min-width:90px;
+      font-weight:600;
+      color:#f0c674;
+      font-family:var(--font-mono);
+      font-size:.85rem;
+      padding-top:6px;
+    }
+    .sql-builder select, .sql-builder input[type="text"], .sql-builder input[type="number"] {
+      font:inherit; color:var(--color-text);
+      background:var(--color-bg);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:5px 8px;
+      font-size:.85rem;
+      min-width:90px;
+    }
+    .sql-builder select:focus, .sql-builder input:focus { outline:none; border-color:#f0c674; }
+    .sql-builder select[multiple] {
+      min-width:160px; min-height:64px;
+      font-family:var(--font-mono);
+    }
+    .sql-builder .col-stack {
+      display:flex; flex-direction:column; gap:4px;
+      flex:1 1 auto;
+    }
+    .sql-builder .where-row, .sql-builder .order-row {
+      display:flex; gap:6px; align-items:center; flex-wrap:wrap;
+    }
+    .sql-builder .where-row select, .sql-builder .order-row select { min-width:90px; }
+    .sql-builder .icon-btn {
+      font:inherit; color:var(--color-text-dim);
+      background:transparent;
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:4px 8px;
+      cursor:pointer;
+      font-size:.85rem;
+    }
+    .sql-builder .icon-btn:hover { border-color:#f0c674; color:#f0c674; }
+    .sql-builder .icon-btn.danger:hover { border-color:var(--color-danger); color:var(--color-danger); }
+    .sql-builder .add-btn {
+      font:inherit; color:#f0c674;
+      background:transparent;
+      border:1px dashed var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:4px 12px;
+      cursor:pointer;
+      font-size:.8rem;
+      align-self:flex-start;
+    }
+    .sql-builder .add-btn:hover { border-color:#f0c674; }
+    .sql-builder .builder-actions {
+      display:flex; gap:var(--space-2);
+      padding-top:var(--space-2);
+      border-top:1px solid var(--color-border);
+    }
+    .sql-builder .builder-actions button.primary {
+      background:#f0c674; color:#241b0a;
+      border-color:#f0c674; font-weight:600;
+      padding:6px 14px; border:1px solid; border-radius:var(--radius-sm);
+      cursor:pointer; font:inherit;
+    }
+    .sql-builder .builder-actions button.primary:hover { background:#f5d699; }
+    .sql-builder .builder-actions button:not(.primary) {
+      background:transparent; color:var(--color-text);
+      border:1px solid var(--color-border); border-radius:var(--radius-sm);
+      padding:6px 14px; cursor:pointer; font:inherit;
+    }
+    .sql-builder .builder-actions button:not(.primary):hover {
+      border-color:#f0c674; color:#f0c674;
+    }
+    .sql-panel button.builder-toggle {
+      background:transparent; color:var(--color-text-dim);
+      border:1px solid var(--color-border);
+      border-radius:var(--radius-sm);
+      padding:4px 10px;
+      cursor:pointer; font:inherit; font-size:.78rem;
+    }
+    .sql-panel button.builder-toggle.active { color:#f0c674; border-color:#f0c674; }
+    .sql-panel button.builder-toggle:hover { border-color:#f0c674; color:#f0c674; }
+
     /* Main + table */
     main {
       flex:1 1 auto;
@@ -491,7 +586,7 @@
 
 <header class="app">
   <h1>CSV<span class="accent">Horse</span></h1>
-  <span class="badge">v0.1.4-Trakehner</span>
+  <span class="badge">v0.1.5-Tinker</span>
   <span class="badge" id="phaseBadge">leeg</span>
   <span class="spacer"></span>
   <span class="meta" id="fileNameMeta"></span>
@@ -578,6 +673,57 @@
     <div class="right-col">
       <button class="primary" id="btnRunSql" title="Voer query uit (Ctrl/Cmd+Enter)">▶ Run</button>
       <button id="btnClearSql" title="Wis SQL-resultaat, terug naar normale view">Wis SQL</button>
+      <button class="builder-toggle" id="btnToggleBuilder" title="Toon/verberg visuele query-builder">🧩 Builder</button>
+    </div>
+  </div>
+  <div class="sql-builder" id="sqlBuilder" role="region" aria-label="SQL builder">
+    <div class="builder-row">
+      <span class="label">SELECT</span>
+      <div class="col-stack">
+        <label style="display:flex;gap:6px;align-items:center;">
+          <input type="radio" name="selectMode" value="all" id="selModeAll" checked>
+          <span>Alle kolommen (*)</span>
+        </label>
+        <label style="display:flex;gap:6px;align-items:flex-start;">
+          <input type="radio" name="selectMode" value="cols" id="selModeCols" style="margin-top:6px;">
+          <select multiple id="selectCols" size="4" disabled></select>
+        </label>
+      </div>
+    </div>
+    <div class="builder-row">
+      <span class="label">WHERE</span>
+      <div class="col-stack">
+        <div id="whereRows"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="add-btn" id="btnAddWhere">+ Voeg conditie toe</button>
+          <label style="font-size:.78rem;color:var(--color-text-dim);">Logica:
+            <select id="whereLogic">
+              <option value="AND">AND</option>
+              <option value="OR">OR</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="builder-row">
+      <span class="label">GROUP BY</span>
+      <select multiple id="groupByCols" size="3"></select>
+    </div>
+    <div class="builder-row">
+      <span class="label">ORDER BY</span>
+      <div class="col-stack">
+        <div id="orderRows"></div>
+        <button type="button" class="add-btn" id="btnAddOrder">+ Voeg sortering toe</button>
+      </div>
+    </div>
+    <div class="builder-row">
+      <span class="label">LIMIT</span>
+      <input type="number" id="limitInput" placeholder="bv. 100" min="1" max="100000">
+    </div>
+    <div class="builder-actions">
+      <button type="button" class="primary" id="btnBuildQuery">⤵ Bouw query → textarea</button>
+      <button type="button" id="btnResetBuilder">Wis builder</button>
+      <button type="button" id="btnBuildAndRun" class="primary" title="Bouw + Run in 1 stap">⤵▶ Bouw + Run</button>
     </div>
   </div>
   <div class="row2">
@@ -638,7 +784,7 @@
 <div id="toast" role="status"></div>
 
 <footer class="app">
-  CSVHorse v0.1.4-Trakehner (codenaam Trakehner) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
+  CSVHorse v0.1.5-Tinker (codenaam Tinker) &middot; iCt Horse Diensten &middot; AGPL-3.0 &middot; <a href="https://icthorse.nl">icthorse.nl</a>
 </footer>
 
 <!-- ============================================================
@@ -1057,6 +1203,108 @@ Filter.OP_LABELS = {
 };
 
 /* ============================================================
+ * SQLBuilder — visuele query-builder (v0.1.5-Tinker)
+ * State -> SQL-string. Geen runtime, alleen builder.
+ * ============================================================ */
+const SQLBuilder = {
+  OPS: [
+    { value: '=',           label: '=' },
+    { value: '!=',          label: '!=' },
+    { value: '<',           label: '<' },
+    { value: '<=',          label: '<=' },
+    { value: '>',           label: '>' },
+    { value: '>=',          label: '>=' },
+    { value: 'like',        label: 'LIKE %x%' },
+    { value: 'not_like',    label: 'NOT LIKE %x%' },
+    { value: 'is_null',     label: 'IS NULL' },
+    { value: 'is_not_null', label: 'IS NOT NULL' },
+    { value: 'between',     label: 'BETWEEN a,b' }
+  ],
+  AGGS: ['', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX'],
+
+  state: {
+    selectMode: 'all',      /* 'all' | 'cols' */
+    selectCols: [],         /* [{ col, agg }] */
+    where: { logic: 'AND', conditions: [] },  /* [{ col, op, val }] */
+    groupBy: [],            /* [col, ...] */
+    orderBy: [],            /* [{ col, dir }] */
+    limit: null
+  },
+
+  reset() {
+    this.state = {
+      selectMode: 'all',
+      selectCols: [],
+      where: { logic: 'AND', conditions: [] },
+      groupBy: [],
+      orderBy: [],
+      limit: null
+    };
+  },
+
+  buildSQL() {
+    const s = this.state;
+    /* SELECT */
+    let sel = '*';
+    if (s.selectMode === 'cols' && s.selectCols.length > 0) {
+      sel = s.selectCols.map(sc => {
+        if (sc.agg) return `${sc.agg}([${sc.col}]) AS [${sc.col}_${sc.agg.toLowerCase()}]`;
+        return `[${sc.col}]`;
+      }).join(', ');
+    }
+    let sql = `SELECT ${sel} FROM data`;
+
+    /* WHERE */
+    const conds = s.where.conditions
+      .filter(c => c.col && c.op && (c.op === 'is_null' || c.op === 'is_not_null' || c.val !== ''))
+      .map(c => this._buildCondition(c));
+    if (conds.length > 0) sql += ' WHERE ' + conds.join(' ' + s.where.logic + ' ');
+
+    /* GROUP BY */
+    if (s.groupBy.length > 0) {
+      sql += ' GROUP BY ' + s.groupBy.map(c => `[${c}]`).join(', ');
+    }
+
+    /* ORDER BY */
+    const ords = s.orderBy.filter(o => o.col).map(o => `[${o.col}] ${o.dir || 'ASC'}`);
+    if (ords.length > 0) sql += ' ORDER BY ' + ords.join(', ');
+
+    /* LIMIT */
+    if (s.limit != null && s.limit !== '' && !isNaN(s.limit)) {
+      sql += ' LIMIT ' + parseInt(s.limit, 10);
+    }
+
+    return sql;
+  },
+
+  _buildCondition(c) {
+    const col = `[${c.col}]`;
+    switch (c.op) {
+      case 'is_null':     return col + ' IS NULL';
+      case 'is_not_null': return col + ' IS NOT NULL';
+      case 'like':        return col + ` LIKE '%${this._escStr(c.val)}%'`;
+      case 'not_like':    return col + ` NOT LIKE '%${this._escStr(c.val)}%'`;
+      case 'between': {
+        const parts = String(c.val || '').split(/\s*,\s*/);
+        const a = this._maybeQuote(parts[0] || '');
+        const b = this._maybeQuote(parts[1] || '');
+        return col + ' BETWEEN ' + a + ' AND ' + b;
+      }
+      default: return col + ' ' + c.op + ' ' + this._maybeQuote(c.val);
+    }
+  },
+
+  _maybeQuote(v) {
+    if (v == null || v === '') return "''";
+    const s = String(v);
+    if (/^-?\d+(\.\d+)?$/.test(s)) return s;
+    return "'" + this._escStr(s) + "'";
+  },
+
+  _escStr(s) { return String(s).replace(/'/g, "''"); }
+};
+
+/* ============================================================
  * SQLEngine — AlaSQL wrapper, produceert result-set (read-only)
  * ============================================================ */
 const SQLEngine = {
@@ -1376,17 +1624,6 @@ const IO = {
           const meta = results.meta || {};
           /* Lift __style_*-kolommen naar styles-object (B-roundtrip) */
           const lifted = IO.liftStyles(rows, headers);
-          const styleCellCount = Object.values(lifted.styles).reduce(
-            (sum, row) => sum + Object.keys(row).length, 0);
-          console.log('[CSVHorse import]', {
-            file: file.name,
-            rawHeaders: headers,
-            styleHeadersDetected: headers.filter(h => IO.STYLE_COL_PATTERN.test(h)),
-            realCols: lifted.cols,
-            rows: lifted.rows.length,
-            styleCellCount,
-            stylesObject: lifted.styles
-          });
           resolve({
             rows: lifted.rows,
             cols: lifted.cols,
@@ -1398,8 +1635,7 @@ const IO = {
             },
             fileName: file.name,
             errors: results.errors || [],
-            stylesLifted: Object.keys(lifted.styles).length,
-            styleCellCount: styleCellCount
+            stylesLifted: Object.keys(lifted.styles).length
           });
         },
         error: (err) => reject(err)
@@ -1789,6 +2025,21 @@ const UI = {
       btnClearStyle:    document.getElementById('btnClearStyle'),
       opmaakSummary:    document.getElementById('opmaakSummary'),
       exportModal:      document.getElementById('exportModal'),
+      sqlBuilder:       document.getElementById('sqlBuilder'),
+      btnToggleBuilder: document.getElementById('btnToggleBuilder'),
+      selModeAll:       document.getElementById('selModeAll'),
+      selModeCols:      document.getElementById('selModeCols'),
+      selectCols:       document.getElementById('selectCols'),
+      whereRows:        document.getElementById('whereRows'),
+      btnAddWhere:      document.getElementById('btnAddWhere'),
+      whereLogic:       document.getElementById('whereLogic'),
+      groupByCols:      document.getElementById('groupByCols'),
+      orderRows:        document.getElementById('orderRows'),
+      btnAddOrder:      document.getElementById('btnAddOrder'),
+      limitInput:       document.getElementById('limitInput'),
+      btnBuildQuery:    document.getElementById('btnBuildQuery'),
+      btnResetBuilder:  document.getElementById('btnResetBuilder'),
+      btnBuildAndRun:   document.getElementById('btnBuildAndRun'),
       exportFilename:   document.getElementById('exportFilename'),
       exportWithStyles: document.getElementById('exportWithStyles'),
       exportWithBom:    document.getElementById('exportWithBom'),
@@ -1833,6 +2084,7 @@ const UI = {
     this.wireSqlPanel();
     this.wireExportButton();
     this.wireFormatPanel();
+    this.wireSqlBuilder();
     this.wireDragDrop();
     this.wireTableClicks();
     this.wireKeyboard();
@@ -1861,6 +2113,7 @@ const UI = {
       CommandHistory.clear();
       Filter.clear();
       SQLEngine.clear();
+      SQLBuilder.reset();
       DataStore.clear();
       this.showToast('Tabel gewist', 'ok');
     });
@@ -2011,6 +2264,192 @@ const UI = {
     cmd.apply();
     CommandHistory.push(cmd);
   },
+
+  /* ====== SQL Builder UI (v0.1.5-Tinker) ====== */
+  wireSqlBuilder() {
+    this.els.btnToggleBuilder.addEventListener('click', () => {
+      const open = this.els.sqlBuilder.classList.toggle('open');
+      this.els.btnToggleBuilder.classList.toggle('active', open);
+      if (open) this.refreshBuilderColumns();
+    });
+    this.els.selModeAll.addEventListener('change', () => {
+      SQLBuilder.state.selectMode = 'all';
+      this.els.selectCols.disabled = true;
+    });
+    this.els.selModeCols.addEventListener('change', () => {
+      SQLBuilder.state.selectMode = 'cols';
+      this.els.selectCols.disabled = false;
+      this.syncSelectColsFromUI();
+    });
+    this.els.selectCols.addEventListener('change', () => this.syncSelectColsFromUI());
+    this.els.whereLogic.addEventListener('change', (e) => { SQLBuilder.state.where.logic = e.target.value; });
+    this.els.btnAddWhere.addEventListener('click', () => this.addWhereRow());
+    this.els.groupByCols.addEventListener('change', () => this.syncGroupByFromUI());
+    this.els.btnAddOrder.addEventListener('click', () => this.addOrderRow());
+    this.els.limitInput.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value, 10);
+      SQLBuilder.state.limit = isNaN(v) ? null : v;
+    });
+    this.els.btnBuildQuery.addEventListener('click', () => {
+      const sql = SQLBuilder.buildSQL();
+      this.els.sqlText.value = sql;
+      this.showToast('Query gebouwd', 'ok');
+    });
+    this.els.btnBuildAndRun.addEventListener('click', () => {
+      const sql = SQLBuilder.buildSQL();
+      this.els.sqlText.value = sql;
+      this.runSqlFromUI();
+    });
+    this.els.btnResetBuilder.addEventListener('click', () => {
+      SQLBuilder.reset();
+      this.refreshBuilderUI();
+      this.showToast('Builder gewist', 'info');
+    });
+  },
+
+  refreshBuilderColumns() {
+    const cols = DataStore.cols || [];
+    /* Populate SELECT multi-select */
+    this.els.selectCols.innerHTML = '';
+    for (const c of cols) {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      this.els.selectCols.appendChild(o);
+    }
+    /* Populate GROUP BY */
+    this.els.groupByCols.innerHTML = '';
+    for (const c of cols) {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      this.els.groupByCols.appendChild(o);
+    }
+    /* Render where + order rows */
+    this.renderWhereRows();
+    this.renderOrderRows();
+  },
+
+  refreshBuilderUI() {
+    /* Reset radio */
+    this.els.selModeAll.checked = (SQLBuilder.state.selectMode === 'all');
+    this.els.selModeCols.checked = (SQLBuilder.state.selectMode === 'cols');
+    this.els.selectCols.disabled = (SQLBuilder.state.selectMode !== 'cols');
+    /* Unselect all in selectCols */
+    for (const opt of this.els.selectCols.options) opt.selected = false;
+    /* GROUP BY */
+    for (const opt of this.els.groupByCols.options) opt.selected = false;
+    /* Limit */
+    this.els.limitInput.value = '';
+    /* WHERE + ORDER rows */
+    this.renderWhereRows();
+    this.renderOrderRows();
+    /* Logic */
+    this.els.whereLogic.value = SQLBuilder.state.where.logic || 'AND';
+  },
+
+  syncSelectColsFromUI() {
+    const selected = Array.from(this.els.selectCols.selectedOptions).map(o => o.value);
+    /* Preserve aggregates voor bestaande cols */
+    const aggMap = {};
+    for (const sc of SQLBuilder.state.selectCols) aggMap[sc.col] = sc.agg;
+    SQLBuilder.state.selectCols = selected.map(c => ({ col: c, agg: aggMap[c] || '' }));
+  },
+
+  syncGroupByFromUI() {
+    SQLBuilder.state.groupBy = Array.from(this.els.groupByCols.selectedOptions).map(o => o.value);
+  },
+
+  addWhereRow(initial) {
+    const c = initial || { col: '', op: '=', val: '' };
+    SQLBuilder.state.where.conditions.push(c);
+    this.renderWhereRows();
+  },
+
+  renderWhereRows() {
+    const cols = DataStore.cols || [];
+    this.els.whereRows.innerHTML = '';
+    SQLBuilder.state.where.conditions.forEach((cond, idx) => {
+      const row = document.createElement('div');
+      row.className = 'where-row';
+
+      const colSel = document.createElement('select');
+      colSel.innerHTML = '<option value="">--kolom--</option>' +
+        cols.map(c => `<option value="${this._escAttr(c)}"${cond.col === c ? ' selected' : ''}>${this._escHtml(c)}</option>`).join('');
+      colSel.addEventListener('change', (e) => { cond.col = e.target.value; });
+      row.appendChild(colSel);
+
+      const opSel = document.createElement('select');
+      opSel.innerHTML = SQLBuilder.OPS.map(op =>
+        `<option value="${op.value}"${cond.op === op.value ? ' selected' : ''}>${op.label}</option>`).join('');
+      opSel.addEventListener('change', (e) => {
+        cond.op = e.target.value;
+        valInput.disabled = (cond.op === 'is_null' || cond.op === 'is_not_null');
+      });
+      row.appendChild(opSel);
+
+      const valInput = document.createElement('input');
+      valInput.type = 'text';
+      valInput.placeholder = cond.op === 'between' ? 'a,b' : 'waarde';
+      valInput.value = cond.val || '';
+      valInput.disabled = (cond.op === 'is_null' || cond.op === 'is_not_null');
+      valInput.addEventListener('input', (e) => { cond.val = e.target.value; });
+      valInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); this.els.btnBuildQuery.click(); }
+      });
+      row.appendChild(valInput);
+
+      const rmBtn = document.createElement('button');
+      rmBtn.type = 'button'; rmBtn.className = 'icon-btn danger';
+      rmBtn.title = 'Verwijder conditie'; rmBtn.textContent = '✕';
+      rmBtn.addEventListener('click', () => {
+        SQLBuilder.state.where.conditions.splice(idx, 1);
+        this.renderWhereRows();
+      });
+      row.appendChild(rmBtn);
+
+      this.els.whereRows.appendChild(row);
+    });
+  },
+
+  addOrderRow(initial) {
+    const o = initial || { col: '', dir: 'ASC' };
+    SQLBuilder.state.orderBy.push(o);
+    this.renderOrderRows();
+  },
+
+  renderOrderRows() {
+    const cols = DataStore.cols || [];
+    this.els.orderRows.innerHTML = '';
+    SQLBuilder.state.orderBy.forEach((ord, idx) => {
+      const row = document.createElement('div');
+      row.className = 'order-row';
+
+      const colSel = document.createElement('select');
+      colSel.innerHTML = '<option value="">--kolom--</option>' +
+        cols.map(c => `<option value="${this._escAttr(c)}"${ord.col === c ? ' selected' : ''}>${this._escHtml(c)}</option>`).join('');
+      colSel.addEventListener('change', (e) => { ord.col = e.target.value; });
+      row.appendChild(colSel);
+
+      const dirSel = document.createElement('select');
+      dirSel.innerHTML = `<option value="ASC"${ord.dir === 'ASC' ? ' selected' : ''}>ASC</option>` +
+                        `<option value="DESC"${ord.dir === 'DESC' ? ' selected' : ''}>DESC</option>`;
+      dirSel.addEventListener('change', (e) => { ord.dir = e.target.value; });
+      row.appendChild(dirSel);
+
+      const rmBtn = document.createElement('button');
+      rmBtn.type = 'button'; rmBtn.className = 'icon-btn danger';
+      rmBtn.title = 'Verwijder sortering'; rmBtn.textContent = '✕';
+      rmBtn.addEventListener('click', () => {
+        SQLBuilder.state.orderBy.splice(idx, 1);
+        this.renderOrderRows();
+      });
+      row.appendChild(rmBtn);
+
+      this.els.orderRows.appendChild(row);
+    });
+  },
+
+  _escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); },
+  _escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); },
 
   refreshFormatPanelState() {
     const hasSel = Selection.has() && !DataStore.isEmpty() && !SQLEngine.active;
@@ -2336,19 +2775,15 @@ const UI = {
       CommandHistory.clear();
       Filter.clear();
       SQLEngine.clear();
+      SQLBuilder.reset();
       this.showToast('Bezig met inlezen…', 'info');
       const result = await IO.parseFile(file);
       DataStore.load(result);
       const c = DataStore.count();
-      const styleCells = result.styleCellCount || 0;
       let msg = `Geladen: ${file.name} — ${c.rows} rij${c.rows === 1 ? '' : 'en'} × ${c.cols} kolom${c.cols === 1 ? '' : 'men'}`;
-      if (styleCells > 0) {
-        msg += ` · opmaak hersteld: ${styleCells} cel${styleCells === 1 ? '' : 'len'}`;
-      }
       if (result.errors && result.errors.length > 0) {
         msg += ` (${result.errors.length} waarschuwing${result.errors.length === 1 ? '' : 'en'})`;
       }
-      console.log('[CSVHorse load]', { storeRows: DataStore.rows.length, storeCols: DataStore.cols.length, storeStyles: DataStore.styles, styleCells });
       this.showToast(msg, 'ok');
     } catch (err) {
       console.error('[CSVHorse]', err);
@@ -2397,6 +2832,10 @@ const UI = {
     this.updateStats();
     this.refreshPhaseBadge();
     this.els.fileNameMeta.textContent = store.fileName ? '📄 ' + store.fileName : '';
+    /* Refresh builder kolommen als data verandert */
+    if (this.els.sqlBuilder && this.els.sqlBuilder.classList.contains('open')) {
+      this.refreshBuilderColumns();
+    }
   },
 
   onHistoryChanged() {
