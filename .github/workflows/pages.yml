@@ -50,33 +50,87 @@ jobs:
           cat > _site/landing.html <<'HTMLEOF'
           <!DOCTYPE html>
           <html lang="nl"><head>
-          <meta charset="utf-8"><title>CSVHorse + SheetHorse</title>
+          <meta charset="utf-8"><title>CSVHorse + SheetHorse · iCt Horse Data-tools</title>
+          <meta name="viewport" content="width=device-width,initial-scale=1">
           <style>
-            body{font-family:system-ui;background:#0f1115;color:#e6e9ef;margin:0;padding:2rem;display:flex;flex-direction:column;gap:1.5rem;align-items:center;justify-content:center;min-height:100vh}
-            .card{background:#161a22;border:1px solid #2a3140;border-radius:8px;padding:1.5rem;max-width:600px}
-            h1{color:#59c5a8;margin-top:0}
-            a{color:#4ab3ff;text-decoration:none}
-            a:hover{text-decoration:underline}
-            .badge{display:inline-block;background:#264f3a;color:#7ad8be;padding:.2rem .5rem;border-radius:99px;font-size:.75rem;margin-left:.5rem}
-            .badge.full{background:#3a2a14;color:#f0c674}
+            *,*::before,*::after{box-sizing:border-box}
+            body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#0f1115;color:#e6e9ef;margin:0;padding:2rem;display:flex;flex-direction:column;gap:1.2rem;align-items:center;min-height:100vh;line-height:1.5}
+            .hero{max-width:780px;text-align:center;margin-top:1rem}
+            h1{color:#59c5a8;margin:0 0 .4em;font-size:2rem}
+            .lead{color:#9aa3b2;font-size:1rem;max-width:600px;margin:0 auto}
+            .cards{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;max-width:980px;width:100%;margin-top:1rem}
+            @media(max-width:720px){.cards{grid-template-columns:1fr}}
+            .card{background:#161a22;border:1px solid #2a3140;border-radius:10px;padding:1.5rem;display:flex;flex-direction:column;gap:.5rem}
+            .card.light{border-left:4px solid #59c5a8}
+            .card.full{border-left:4px solid #f0c674}
+            .card h2{margin:0;font-size:1.3rem}
+            .card.light h2{color:#59c5a8}
+            .card.full h2{color:#f0c674}
+            .card .badge{display:inline-block;padding:.2rem .55rem;border-radius:99px;font-size:.7rem;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-left:.5rem}
+            .card.light .badge{background:#264f3a;color:#7ad8be}
+            .card.full .badge{background:#3a2a14;color:#f0c674}
+            .card p{margin:.3rem 0;font-size:.92rem;color:#cfd5e1}
+            .card .features{font-size:.85rem;color:#9aa3b2;margin:.6rem 0;line-height:1.7}
+            .card .links{margin-top:.8rem;display:flex;flex-wrap:wrap;gap:.5rem 1.1rem;font-size:.88rem}
+            .card .links a{text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+            .card.light .links a{color:#7ad8be}
+            .card.full .links a{color:#f5d699}
+            .card .links a:hover{text-decoration:underline}
+            .footer{max-width:780px;text-align:center;margin-top:1rem;font-size:.8rem;color:#9aa3b2;line-height:1.7}
+            .footer a{color:#4ab3ff;text-decoration:none}
+            .footer a:hover{text-decoration:underline}
+            .gh-link{font-size:.85rem}
           </style></head>
           <body>
-          <div class="card">
-            <h1>iCt Horse · Data tools</h1>
-            <p>Twee productvarianten op één codebase (1 repo, 2 branches):</p>
-            <p>
-              <a href="./"><strong>CSVHorse</strong></a>
-              <span class="badge">light</span>
-              <br>Single-table CSV-werkbank · SQL · opmaak · autosave · zoek/vervang
-            </p>
-            <p>
-              <a href="./sheethorse/"><strong>SheetHorse</strong></a>
-              <span class="badge full">full</span>
-              <br>Virtuele relationele DB · Excel (.xlsx) import + export met opmaak · multi-sheet (komt: relaties + SQL-joins)
-            </p>
-            <p style="margin-top:2rem;font-size:.8rem;color:#9aa3b2">
-              Source: <a href="https://github.com/cpaglebbeek/CSVHorse">cpaglebbeek/CSVHorse</a>
-              · AGPL-3.0 · iCt Horse Diensten
+          <div class="hero">
+            <h1>🐎 iCt Horse · Data-tools</h1>
+            <p class="lead">Twee productvarianten op één codebase &mdash; één GitHub-repository, twee branches, gratis browser-werkbanken voor CSV en Excel-data.</p>
+          </div>
+          <div class="cards">
+            <div class="card light">
+              <h2>CSVHorse <span class="badge">light</span></h2>
+              <p><strong>Single-table CSV-werkbank.</strong> Open, query, bewerk, exporteer &mdash; alles in &eacute;&eacute;n HTML-bestand.</p>
+              <div class="features">
+                ▪ SQL via AlaSQL + visuele query-builder<br>
+                ▪ Filter, opmaak per cel, onbeperkte undo<br>
+                ▪ Autosave naar localStorage<br>
+                ▪ Zoek/vervang met regex<br>
+                ▪ Header-namen bewerkbaar<br>
+                ▪ Export met opmaak round-trip (<code>__style_*</code>)<br>
+                ▪ Lege CSV starten via dialog
+              </div>
+              <div class="links">
+                <a href="./">▶ Open de tool</a>
+                <a href="./architectuur/csvhorse/" target="_blank">🏗 Architectuur</a>
+                <a href="https://icthorse.nl/Linkedin/posts/2026-05-28-csvhorse-lancering.html" target="_blank">📖 Lancering</a>
+              </div>
+            </div>
+            <div class="card full">
+              <h2>SheetHorse <span class="badge">full</span></h2>
+              <p><strong>Virtuele relationele DB.</strong> CSVHorse-features + Excel-roundtrip + multi-sheet + relaties + SQL-joins.</p>
+              <div class="features">
+                ▪ Excel (.xlsx) import + export met native cell-styles<br>
+                ▪ Multi-sheet tab-strip met per-sheet state<br>
+                ▪ Alle features van CSVHorse<br>
+                ▪ Roadmap: relaties-tabblad (v0.3.0)<br>
+                ▪ Roadmap: SQL-joins over sheets (v0.4.0)<br>
+                ▪ Roadmap: CSV-met-metadata-format (v0.5.0)<br>
+                ▪ Embedded-objects detect-only met waarschuwing
+              </div>
+              <div class="links">
+                <a href="./sheethorse/">▶ Open de tool</a>
+                <a href="./architectuur/sheethorse/" target="_blank">🏗 Architectuur</a>
+                <a href="https://icthorse.nl/Linkedin/posts/2026-05-28-sheethorse-lancering.html" target="_blank">📖 Lancering</a>
+              </div>
+            </div>
+          </div>
+          <div class="footer">
+            <p><strong>Architectuur-documentatie</strong> &middot; Beide producten hebben een interactieve ArchiMate-stijl viewer met 9 views (componenten · data-flow · roadmap · branch-split). Deterministisch, export naar JSON/.archimate/SVG.</p>
+            <p class="gh-link">
+              Source: <a href="https://github.com/cpaglebbeek/CSVHorse" target="_blank">cpaglebbeek/CSVHorse</a>
+              &middot; AGPL-3.0
+              &middot; <a href="https://icthorse.nl" target="_blank">iCt Horse Diensten</a>
+              &middot; <a href="https://icthorse.nl/diensten.html#data-tools" target="_blank">Diensten</a>
             </p>
           </div>
           </body></html>
