@@ -1704,6 +1704,8 @@ const AutosaveService = {
       this.schedule();
     } else if (!this.enabled) {
       if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+      /* v0.2.0.1: UIT-zetten wist ook bestaande snapshot — consistent gedrag */
+      this.clearStorage();
     }
     this.notify();
   },

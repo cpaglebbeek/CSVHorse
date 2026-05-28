@@ -1,7 +1,7 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.0.1",
   "codename": "Mustang",
   "codenameTheme": "Paardenrassen",
   "released": false,
-  "phase": "MVP-stap 9: autosave naar localStorage (throttled + AAN/UIT) + zoek/vervang dialog (regex/case/scope/volgende/vorige/vervang alle)"
+  "phase": "MVP-stap 9 + patch: autosave UIT wist nu ook bestaande snapshot (consistent gedrag)"
 }
